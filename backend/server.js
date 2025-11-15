@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
+const beNuoiRoutes = require('./routes/BeNuoiRoutes');
+
 
 // Load env variables
 dotenv.config();
@@ -20,6 +22,8 @@ app.use(helmet());       // bảo mật headers
 
 // ===== ROUTES =====
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/tank', beNuoiRoutes);
+
 
 // ===== 404 - route không tồn tại =====
 app.use((req, res, next) => {

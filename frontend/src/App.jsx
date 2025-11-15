@@ -1,20 +1,20 @@
-import { useEffect, useState } from "react";
-import api from "./api/axiosConfig";
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import BeNuoi from "./pages/BeNuoi.jsx";
+
+
 
 function App() {
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    api.get("/hello")
-      .then(res => setMessage(res.data.message))
-      .catch(err => console.error("Lỗi kết nối API:", err));
-  }, []);
-
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Kết nối Backend</h1>
-      <p>{message}</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/BeNuoi" element={<BeNuoi />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
