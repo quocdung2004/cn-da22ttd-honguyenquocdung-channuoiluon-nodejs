@@ -92,16 +92,32 @@ export default function FinanceManager() {
     fetchFinanceRecords();
   }, []);
 
-  // --- Logic Biểu đồ (Sử dụng useMemo để tính toán hiệu quả) ---
-  const { totalRevenue, totalCost, netProfit, chartData } = useMemo(() => {
+  // --- Logic Báo cáo & Biểu đồ ---
+  const { totalRevenue, totalCost, netProfit, chartData, reportByTank } = useMemo(() => {
     let revenue = 0;
     let cost = 0;
+    const reportByTank = {};
 
     records.forEach(record => {
+      // 1. Tính tổng toàn cục
       if (record.type === 'revenue') {
         revenue += record.amount;
       } else if (record.type === 'cost') {
         cost += record.amount;
+      }
+      
+      // 2. Tính tổng theo bể (Aggregation)
+      const tankId = record.tankId?._id || record.tankId;
+      const tankName = record.tankId?.name || 'Chưa xác định';
+
+      if (!reportByTank[tankId]) {
+          reportByTank[tankId] = { name: tankName, revenue: 0, cost: 0, id: tankId };
+      }
+      
+      if (record.type === 'revenue') {
+          reportByTank[tankId].revenue += record.amount;
+      } else if (record.type === 'cost') {
+          reportByTank[tankId].cost += record.amount;
       }
     });
 
@@ -113,8 +129,8 @@ export default function FinanceManager() {
           {
             data: [revenue, cost],
             backgroundColor: [
-              'rgba(52, 211, 106, 0.8)', // Xanh lá cây cho Revenue
-              'rgba(239, 68, 68, 0.8)',  // Đỏ cho Cost
+              'rgba(52, 211, 106, 0.8)',
+              'rgba(239, 68, 68, 0.8)',
             ],
             borderColor: [
               'rgba(52, 211, 106, 1)',
@@ -125,21 +141,14 @@ export default function FinanceManager() {
         ],
       };
 
-    return { totalRevenue: revenue, totalCost: cost, netProfit: net, chartData: data };
-  }, [records]); // Chỉ tính toán lại khi danh sách records thay đổi
+    return { totalRevenue: revenue, totalCost: cost, netProfit: net, chartData: data, reportByTank };
+  }, [records]);
 
   const chartOptions = {
     responsive: true,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: { font: { size: 14 } }
-      },
-      title: {
-        display: true,
-        text: 'Tỷ lệ Thu/Chi',
-        font: { size: 16 }
-      }
+      legend: { position: 'bottom', labels: { font: { size: 14 } } },
+      title: { display: true, text: 'Tỷ lệ Thu/Chi', font: { size: 16 } }
     },
   };
 
@@ -188,7 +197,7 @@ export default function FinanceManager() {
         });
         alert("Thêm mới giao dịch thành công");
       }
-      fetchFinanceRecords(); // Re-fetch data để cập nhật bảng và biểu đồ
+      fetchFinanceRecords(); 
       closePopup();
     } catch (err) {
       console.error("LỖI GỬI API:", err.response?.data || err.message);
@@ -249,14 +258,79 @@ export default function FinanceManager() {
                 </div>
             </div>
 
-            {/* Biểu đồ */}
-            {totalRevenue > 0 || totalCost > 0 ? (
-                <div className="w-full max-w-sm mx-auto p-4 border rounded-lg">
-                    <Doughnut data={chartData} options={chartOptions} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Cột 1: Biểu đồ Doughnut */}
+                {(totalRevenue > 0 || totalCost > 0) ? (
+                    <div className="lg:col-span-1 p-4 border rounded-lg bg-white shadow-inner flex items-center justify-center">
+                        <div className="w-full max-w-[300px]">
+                            <Doughnut data={chartData} options={chartOptions} />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="lg:col-span-1 flex items-center justify-center p-4 border rounded-lg bg-gray-50">
+                        <p className="text-center text-gray-500 italic">Chưa có đủ dữ liệu thu chi để vẽ biểu đồ.</p>
+                    </div>
+                )}
+                
+                {/* Cột 2 & 3: Báo cáo chi tiết theo Bể Nuôi (ĐÃ CHỈNH SỬA FONT LÃI/LỖ RÒNG) */}
+                <div className="lg:col-span-2">
+                    <h3 className="text-xl font-bold text-gray-700 mb-3 border-b pb-2">Báo cáo Lãi/Lỗ theo Bể</h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        {Object.values(reportByTank).map(tankReport => {
+                            const net = tankReport.revenue - tankReport.cost;
+                            
+                            // Xác định CSS cho toàn bộ card dựa trên Lãi/Lỗ
+                            const cardBgColor = net >= 0 ? 'bg-blue-50' : 'bg-yellow-50';
+                            const borderColor = net >= 0 ? '#3b82f6' : '#d97706';
+
+                            return (
+                                <div 
+                                    key={tankReport.id} 
+                                    className={`p-3 rounded-lg shadow-sm border-l-4 ${cardBgColor}`}
+                                    style={{ borderColor: borderColor }}
+                                >
+                                    {/* Tên Bể */}
+                                    <h4 className="font-bold text-xl mb-2 text-gray-800 border-b pb-1">
+                                        {tankReport.name}
+                                    </h4>
+                                    
+                                    <div className="space-y-1 text-sm">
+                                        {/* Thu */}
+                                        <p className="flex justify-between items-center text-gray-700">
+                                            <span className="font-medium">💰 Thu:</span> 
+                                            <span className="font-bold text-green-600">
+                                                {formatCurrency(tankReport.revenue)}
+                                            </span>
+                                        </p>
+
+                                        {/* Chi */}
+                                        <p className="flex justify-between items-center text-gray-700">
+                                            <span className="font-medium">💸 Chi:</span> 
+                                            <span className="font-bold text-red-600">
+                                                {formatCurrency(tankReport.cost)}
+                                            </span>
+                                        </p>
+
+                                        {/* Lãi/Lỗ Ròng: Dùng font bình thường cho label, font-bold cho giá trị */}
+                                        <p className={`text-base pt-1 mt-1 border-t flex justify-between items-center`}>
+                                            <span className="font-normal text-gray-700">Lãi/Lỗ Ròng:</span>
+                                            <span className={`font-bold ${
+                                                net >= 0 ? 'text-blue-600' : 'text-yellow-700'
+                                            }`}>
+                                                {formatCurrency(Math.abs(net))}
+                                                {net >= 0 ? ' (Lãi)' : ' (Lỗ)'}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {Object.keys(reportByTank).length === 0 && (
+                            <p className="text-center text-gray-500">Chưa có giao dịch được gán cho bể nào.</p>
+                        )}
+                    </div>
                 </div>
-            ) : (
-                <p className="text-center text-gray-500 italic mt-4">Chưa có đủ dữ liệu thu chi để vẽ biểu đồ.</p>
-            )}
+            </div>
         </section>
 
         <hr className="my-6" />
@@ -312,7 +386,7 @@ export default function FinanceManager() {
           </div>
         )}
 
-        {/* POPUP (Không thay đổi) */}
+        {/* POPUP (Đã sửa nút ngang hàng) */}
         {showPopup && (
           <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
@@ -345,9 +419,17 @@ export default function FinanceManager() {
                     </select>
                     <input type="number" name="amount" placeholder="Số tiền (VND)" className="w-full border px-3 py-2 rounded" value={form.amount} onChange={handleChange} required />
                     <textarea name="description" placeholder="Mô tả chi tiết (Tùy chọn)" rows="3" className="w-full border px-3 py-2 rounded" value={form.description} onChange={handleChange} />
-                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">{popupType === "create" ? "Thêm mới" : "Cập nhật"}</button>
+                    
+                    {/* NÚT NGANG HÀNG */}
+                    <div className="flex space-x-3 pt-2">
+                        <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                            {popupType === "create" ? "Thêm mới" : "Cập nhật"}
+                        </button>
+                        <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400">
+                            Hủy
+                        </button>
+                    </div>
                   </form>
-                  <button onClick={closePopup} className="mt-3 w-full bg-gray-300 py-2 rounded hover:bg-gray-400">Hủy</button>
                 </>
               )}
 
