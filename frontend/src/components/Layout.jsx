@@ -24,7 +24,7 @@ export default function Layout({ children }) {
               <>
                 <Link to="/BeNuoi" className="mr-4 hover:underline">Bể nuôi</Link>
                 <Link to="/MoiTruong" className="mr-4 hover:underline">Môi Trường</Link>
-                <Link to="/NhatKyAn" className="mr-4 hover:underline">Nhật ký ăn</Link>
+                <Link to="/NhatKyChi" className="mr-4 hover:underline">Nhật ký chi</Link>
                 <Link to="/SucKhoe" className="mr-4 hover:underline">Sức khỏe</Link>
                 <Link to="/TaiChinh" className="mr-4 hover:underline">Tài chính</Link>
 

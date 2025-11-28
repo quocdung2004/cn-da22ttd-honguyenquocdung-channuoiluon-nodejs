@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const beNuoiRoutes = require('./routes/BeNuoiRoutes');
 const MoiTruong = require('./routes/MoiTruongRoutes');
-const NhatKyAn = require('./routes/NhatKyAnRoutes');
+const NhatKyChi = require('./routes/NhatKyChiRoutes');
 const SucKhoe = require('./routes/SucKhoeRoutes');
 const TaiChinh = require('./routes/TaiChinhRoutes');
 // Load env variables
@@ -26,7 +26,7 @@ app.use(helmet());       // bảo mật headers
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/tank', beNuoiRoutes);
 app.use('/api/MoiTruong', MoiTruong);
-app.use('/api/NhatKyAn', NhatKyAn);
+app.use('/api/NhatKyChi', NhatKyChi);
 app.use('/api/SucKhoe', SucKhoe);
 app.use('/api/TaiChinh', TaiChinh);
 

@@ -4,7 +4,7 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import BeNuoi from "./pages/BeNuoi.jsx";
 import MoiTruong from "./pages/MoiTruong.jsx";
-import NhatKyAn from "./pages/NhatKyAn.jsx";
+import NhatKyChi from "./pages/NhatKyChi.jsx";
 import SucKhoe from "./pages/SucKhoe.jsx";
 import TaiChinh from "./pages/TaiChinh.jsx";
 function App() {
@@ -15,7 +15,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/BeNuoi" element={<BeNuoi />} />
         <Route path="/MoiTruong" element={<MoiTruong />} />
-        <Route path="/NhatKyAn" element={<NhatKyAn />} />
+        <Route path="/NhatKyChi" element={<NhatKyChi />} />
         <Route path="/SucKhoe" element={<SucKhoe />} />
         <Route path="/TaiChinh" element={<TaiChinh />} />
       </Routes>
