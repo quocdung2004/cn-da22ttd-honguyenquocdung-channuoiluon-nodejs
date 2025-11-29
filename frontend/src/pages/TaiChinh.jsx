@@ -1,451 +1,401 @@
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import Layout from "../components/Layout";
+// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
+import Layout from "../components/Layout"; 
+
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
-// Đăng ký các thành phần Chart.js
+// Đăng ký thành phần Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function FinanceManager() {
-  // --- Cấu hình API và Token ---
-  const API_FINANCE = "http://localhost:5000/api/taichinh";
-  const API_TANK = "http://localhost:5000/api/tank"; 
-  const token = localStorage.getItem("token");
+  // --- API ---
+  const API_INCOME = "http://localhost:5000/api/NhatKyThu";
+  const API_SPENDING = "http://localhost:5000/api/NhatKyChi";
+  const API_TANK = "http://localhost:5000/api/tank";
+  
+  // const token = localStorage.getItem("token"); 
+  // Code tạm để chạy preview (nếu không có localStorage thực)
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
-  // --- State Quản lý dữ liệu và UI ---
-  const [records, setRecords] = useState([]);
+  // --- State ---
+  const [incomes, setIncomes] = useState([]);
+  const [spendings, setSpendings] = useState([]);
   const [tanks, setTanks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupType, setPopupType] = useState("");
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  // State quản lý View (Dashboard hoặc Xem chi tiết)
+  const [viewMode, setViewMode] = useState('dashboard'); // 'dashboard' | 'detail'
+  const [detailData, setDetailData] = useState(null); // Dữ liệu của đối tượng đang xem chi tiết
 
-  const [form, setForm] = useState({
-    tankId: "",
-    type: "cost",
-    amount: "", 
-    description: "", 
-  });
+  // --- Helpers ---
+  const formatCurrency = (amount) => amount?.toLocaleString('vi-VN') + ' VND';
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('vi-VN');
 
-  // --- Hàm xử lý chung ---
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    let processedValue = value;
-
-    if (name === "amount") {
-      processedValue = value === "" ? "" : Number(value);
+  // --- Fetch Data ---
+  const fetchData = async () => {
+    // Dữ liệu mẫu giả lập cho Preview nếu không có token/API
+    if (!token) {
+        setIncomes([
+            { _id: '1', tankId: 't1', source: 'Bán lươn đợt 1', totalIncome: 50000000, date: '2023-10-01' },
+            { _id: '2', tankId: null, source: 'Thanh lý máy bơm cũ', totalIncome: 2000000, date: '2023-10-05' }
+        ]);
+        setSpendings([
+            { _id: '1', tankId: 't1', reason: 'Mua cám', totalCost: 12000000, date: '2023-09-01' },
+            { _id: '2', tankId: 't2', reason: 'Thuốc trị bệnh', totalCost: 500000, date: '2023-09-10' },
+            { _id: '3', tankId: null, reason: 'Tiền điện tháng 9', totalCost: 3000000, date: '2023-09-30' }
+        ]);
+        setTanks([
+            { _id: 't1', name: 'Bể số 1 (Lươn)' },
+            { _id: 't2', name: 'Bể số 2 (Cá)' }
+        ]);
+        return;
     }
-    
-    setForm((prevForm) => ({
-      ...prevForm,
-      [name]: processedValue,
-    }));
-  };
 
-  const formatCurrency = (amount) => {
-    return amount ? amount.toLocaleString('vi-VN') + ' VND' : '0 VND';
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "---";
-    const options = {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-      hour12: false
-    };
-    return new Date(dateString).toLocaleDateString('vi-VN', options);
-  };
-
-  // --- Chức năng Load Data ---
-
-  const fetchTanks = async () => {
-    try {
-      const res = await axios.get(API_TANK, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTanks(res.data);
-    } catch (err) {
-      console.error("Lỗi khi lấy danh sách bể:", err);
-      alert("Lỗi khi lấy danh sách bể"); 
-    }
-  };
-
-  const fetchFinanceRecords = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_FINANCE, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRecords(res.data);
+      const [resInc, resSpd, resTank] = await Promise.all([
+        axios.get(API_INCOME, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(API_SPENDING, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(API_TANK, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      setIncomes(resInc.data);
+      setSpendings(resSpd.data);
+      setTanks(resTank.data);
     } catch (err) {
-      console.error("Lỗi khi lấy dữ liệu tài chính:", err);
-      alert("Lỗi khi lấy dữ liệu tài chính");
+      console.error("Lỗi tải dữ liệu tài chính:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTanks();
-    fetchFinanceRecords();
+    fetchData();
   }, []);
 
-  // --- Logic Báo cáo & Biểu đồ ---
-  const { totalRevenue, totalCost, netProfit, chartData, reportByTank } = useMemo(() => {
+  // --- LOGIC TỔNG HỢP DỮ LIỆU ---
+  const { 
+    totalRevenue, 
+    totalCost, 
+    netProfit, 
+    reportByTank, 
+    reportGeneral, 
+    chartData 
+  } = useMemo(() => {
     let revenue = 0;
     let cost = 0;
-    const reportByTank = {};
+    
+    // 1. Khởi tạo báo cáo theo bể
+    const reportMap = {}; 
+    tanks.forEach(t => {
+      reportMap[t._id] = { 
+        id: t._id, 
+        name: t.name, 
+        revenue: 0, 
+        cost: 0, 
+        history: [] 
+      };
+    });
 
-    records.forEach(record => {
-      // 1. Tính tổng toàn cục
-      if (record.type === 'revenue') {
-        revenue += record.amount;
-      } else if (record.type === 'cost') {
-        cost += record.amount;
-      }
-      
-      // 2. Tính tổng theo bể (Aggregation)
-      const tankId = record.tankId?._id || record.tankId;
-      const tankName = record.tankId?.name || 'Chưa xác định';
+    // 2. Khởi tạo báo cáo chung
+    const general = { 
+      id: 'general', 
+      name: 'Hoạt động chung (Điện/Nước/Khác)', 
+      revenue: 0, 
+      cost: 0, 
+      history: [] 
+    };
 
-      if (!reportByTank[tankId]) {
-          reportByTank[tankId] = { name: tankName, revenue: 0, cost: 0, id: tankId };
-      }
-      
-      if (record.type === 'revenue') {
-          reportByTank[tankId].revenue += record.amount;
-      } else if (record.type === 'cost') {
-          reportByTank[tankId].cost += record.amount;
+    // 3. Xử lý Thu
+    incomes.forEach(inc => {
+      revenue += inc.totalIncome;
+      const transaction = {
+        date: inc.date,
+        type: 'thu',
+        description: inc.source,
+        amount: inc.totalIncome,
+        note: inc.note
+      };
+
+      const tId = typeof inc.tankId === 'object' && inc.tankId !== null ? inc.tankId._id : inc.tankId;
+
+      if (tId && reportMap[tId]) {
+        reportMap[tId].revenue += inc.totalIncome;
+        reportMap[tId].history.push(transaction);
+      } else {
+        general.revenue += inc.totalIncome;
+        general.history.push(transaction);
       }
     });
 
-    const net = revenue - cost;
-
-    const data = {
-        labels: ['Tổng Doanh thu', 'Tổng Chi phí'],
-        datasets: [
-          {
-            data: [revenue, cost],
-            backgroundColor: [
-              'rgba(52, 211, 106, 0.8)',
-              'rgba(239, 68, 68, 0.8)',
-            ],
-            borderColor: [
-              'rgba(52, 211, 106, 1)',
-              'rgba(239, 68, 68, 1)',
-            ],
-            borderWidth: 1,
-          },
-        ],
+    // 4. Xử lý Chi
+    spendings.forEach(spd => {
+      cost += spd.totalCost;
+      const transaction = {
+        date: spd.date,
+        type: 'chi',
+        description: spd.reason,
+        amount: spd.totalCost,
+        note: spd.note
       };
 
-    return { totalRevenue: revenue, totalCost: cost, netProfit: net, chartData: data, reportByTank };
-  }, [records]);
+      const tId = typeof spd.tankId === 'object' && spd.tankId !== null ? spd.tankId._id : spd.tankId;
+
+      if (tId && reportMap[tId]) {
+        reportMap[tId].cost += spd.totalCost;
+        reportMap[tId].history.push(transaction);
+      } else {
+        general.cost += spd.totalCost;
+        general.history.push(transaction);
+      }
+    });
+
+    // 5. Sắp xếp lịch sử
+    Object.values(reportMap).forEach(item => {
+        item.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+    });
+    general.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // 6. Dữ liệu biểu đồ
+    const dataChart = {
+      labels: ['Tổng Thu', 'Tổng Chi'],
+      datasets: [{
+        data: [revenue, cost],
+        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+        borderColor: ['rgba(34, 197, 94, 1)', 'rgba(239, 68, 68, 1)'],
+        borderWidth: 1,
+      }],
+    };
+
+    return {
+      totalRevenue: revenue,
+      totalCost: cost,
+      netProfit: revenue - cost,
+      reportByTank: reportMap,
+      reportGeneral: general,
+      chartData: dataChart
+    };
+  }, [incomes, spendings, tanks]);
+
+  // --- Handlers ---
+  const handleViewDetail = (data) => {
+    setDetailData(data);
+    setViewMode('detail');
+  };
+
+  const handleBack = () => {
+    setViewMode('dashboard');
+    setDetailData(null);
+  };
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', labels: { font: { size: 14 } } },
-      title: { display: true, text: 'Tỷ lệ Thu/Chi', font: { size: 16 } }
+      legend: { position: 'bottom' },
+      title: { display: true, text: 'Tỷ lệ Thu/Chi Toàn Trại', font: { size: 16 } }
     },
   };
 
-  // --- Chức năng Quản lý Popup (openPopup, closePopup, handleSubmit, handleDelete) ---
-  const openPopup = (type, record = null) => {
-    setPopupType(type);
-    setSelectedRecord(record);
-
-    setForm(
-      record
-        ? {
-            tankId: record.tankId?._id || record.tankId || "",
-            type: record.type,
-            amount: record.amount,
-            description: record.description,
-          }
-        : { tankId: "", type: "cost", amount: "", description: "" }
-    );
-
-    setShowPopup(true);
-  };
-
-  const closePopup = () => {
-    setShowPopup(false);
-    setPopupType("");
-    setSelectedRecord(null);
-    setForm({ tankId: "", type: "cost", amount: "", description: "" });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.tankId) { alert("Vui lòng chọn bể nuôi"); return; }
-    
-    const dataToSend = { ...form, amount: Number(form.amount) };
-    if (!dataToSend.description) delete dataToSend.description;
-
-    try {
-      if (popupType === "edit") {
-        await axios.put(`${API_FINANCE}/${selectedRecord._id}`, dataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        alert("Cập nhật giao dịch thành công");
-      } else {
-        await axios.post(API_FINANCE, dataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        alert("Thêm mới giao dịch thành công");
-      }
-      fetchFinanceRecords(); 
-      closePopup();
-    } catch (err) {
-      console.error("LỖI GỬI API:", err.response?.data || err.message);
-      alert(`Có lỗi xảy ra: ${err.response?.data?.message || err.message}`);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await axios.delete(`${API_FINANCE}/${selectedRecord._id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      alert("Xóa giao dịch thành công");
-      fetchFinanceRecords();
-      closePopup();
-    } catch (err) {
-      console.error("Lỗi xóa bản ghi:", err);
-      alert("Xóa thất bại");
-    }
-  };
-
-  // --- Phần Render Component ---
   return (
     <Layout>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-blue-600">Quản lý Tài Chính & Báo Cáo</h1>
-          <button
-            onClick={() => openPopup("create")}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            + Thêm Giao dịch
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold text-blue-600 mb-6">
+            {viewMode === 'dashboard' ? 'Tổng Quan Tài Chính' : `Chi Tiết: ${detailData?.name}`}
+        </h1>
 
-        {/* --- PHẦN BÁO CÁO THỐNG KÊ --- */}
-        <section className="mb-10 p-5 bg-white rounded-xl shadow-lg">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">📊 Báo cáo Tổng quan</h2>
-            
-            {/* Cards Thống kê */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-green-100 p-4 rounded-lg border-l-4 border-green-600">
-                    <p className="text-green-800 font-medium">Tổng Doanh thu</p>
-                    <h3 className="text-xl font-bold text-green-600">{formatCurrency(totalRevenue)}</h3>
-                </div>
+        {loading ? (
+          <p className="text-center text-gray-500">Đang tổng hợp dữ liệu...</p>
+        ) : (
+          <>
+            {/* ================= DASHBOARD VIEW ================= */}
+            {viewMode === 'dashboard' && (
+              <div className="space-y-8">
                 
-                <div className="bg-red-100 p-4 rounded-lg border-l-4 border-red-600">
-                    <p className="text-red-800 font-medium">Tổng Chi phí</p>
-                    <h3 className="text-xl font-bold text-red-600">{formatCurrency(totalCost)}</h3>
+                {/* 1. Cards Tổng quan */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-green-50 p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+                    <p className="text-green-800 font-medium">Tổng Doanh Thu</p>
+                    <h2 className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</h2>
+                  </div>
+                  <div className="bg-red-50 p-5 rounded-xl shadow-sm border-l-4 border-red-500">
+                    <p className="text-red-800 font-medium">Tổng Chi Phí</p>
+                    <h2 className="text-2xl font-bold text-red-600">{formatCurrency(totalCost)}</h2>
+                  </div>
+                  <div className={`p-5 rounded-xl shadow-sm border-l-4 ${netProfit >= 0 ? 'bg-blue-50 border-blue-500' : 'bg-yellow-50 border-yellow-500'}`}>
+                    <p className="text-gray-800 font-medium">Lợi Nhuận Ròng</p>
+                    <h2 className={`text-2xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                      {formatCurrency(Math.abs(netProfit))} {netProfit >= 0 ? '(Lãi)' : '(Lỗ)'}
+                    </h2>
+                  </div>
                 </div>
 
-                <div className={`p-4 rounded-lg border-l-4 ${netProfit >= 0 ? 'bg-blue-100 border-blue-600' : 'bg-yellow-100 border-yellow-600'}`}>
-                    <p className="font-medium text-gray-700">Lợi nhuận Ròng</p>
-                    <h3 className="text-xl font-bold" style={{ color: netProfit >= 0 ? '#3b82f6' : '#d97706' }}>
-                        {formatCurrency(Math.abs(netProfit))}
-                        {netProfit >= 0 ? ' (Lãi)' : ' (Lỗ)'}
-                    </h3>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Cột 1: Biểu đồ Doughnut */}
-                {(totalRevenue > 0 || totalCost > 0) ? (
-                    <div className="lg:col-span-1 p-4 border rounded-lg bg-white shadow-inner flex items-center justify-center">
-                        <div className="w-full max-w-[300px]">
-                            <Doughnut data={chartData} options={chartOptions} />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="lg:col-span-1 flex items-center justify-center p-4 border rounded-lg bg-gray-50">
-                        <p className="text-center text-gray-500 italic">Chưa có đủ dữ liệu thu chi để vẽ biểu đồ.</p>
-                    </div>
-                )}
-                
-                {/* Cột 2 & 3: Báo cáo chi tiết theo Bể Nuôi (ĐÃ CHỈNH SỬA FONT LÃI/LỖ RÒNG) */}
-                <div className="lg:col-span-2">
-                    <h3 className="text-xl font-bold text-gray-700 mb-3 border-b pb-2">Báo cáo Lãi/Lỗ theo Bể</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {Object.values(reportByTank).map(tankReport => {
-                            const net = tankReport.revenue - tankReport.cost;
-                            
-                            // Xác định CSS cho toàn bộ card dựa trên Lãi/Lỗ
-                            const cardBgColor = net >= 0 ? 'bg-blue-50' : 'bg-yellow-50';
-                            const borderColor = net >= 0 ? '#3b82f6' : '#d97706';
-
-                            return (
-                                <div 
-                                    key={tankReport.id} 
-                                    className={`p-3 rounded-lg shadow-sm border-l-4 ${cardBgColor}`}
-                                    style={{ borderColor: borderColor }}
-                                >
-                                    {/* Tên Bể */}
-                                    <h4 className="font-bold text-xl mb-2 text-gray-800 border-b pb-1">
-                                        {tankReport.name}
-                                    </h4>
-                                    
-                                    <div className="space-y-1 text-sm">
-                                        {/* Thu */}
-                                        <p className="flex justify-between items-center text-gray-700">
-                                            <span className="font-medium">💰 Thu:</span> 
-                                            <span className="font-bold text-green-600">
-                                                {formatCurrency(tankReport.revenue)}
-                                            </span>
-                                        </p>
-
-                                        {/* Chi */}
-                                        <p className="flex justify-between items-center text-gray-700">
-                                            <span className="font-medium">💸 Chi:</span> 
-                                            <span className="font-bold text-red-600">
-                                                {formatCurrency(tankReport.cost)}
-                                            </span>
-                                        </p>
-
-                                        {/* Lãi/Lỗ Ròng: Dùng font bình thường cho label, font-bold cho giá trị */}
-                                        <p className={`text-base pt-1 mt-1 border-t flex justify-between items-center`}>
-                                            <span className="font-normal text-gray-700">Lãi/Lỗ Ròng:</span>
-                                            <span className={`font-bold ${
-                                                net >= 0 ? 'text-blue-600' : 'text-yellow-700'
-                                            }`}>
-                                                {formatCurrency(Math.abs(net))}
-                                                {net >= 0 ? ' (Lãi)' : ' (Lỗ)'}
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {Object.keys(reportByTank).length === 0 && (
-                            <p className="text-center text-gray-500">Chưa có giao dịch được gán cho bể nào.</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* 2. Biểu đồ */}
+                    <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg flex items-center justify-center h-80">
+                        {totalRevenue > 0 || totalCost > 0 ? (
+                            <div className="w-full h-full">
+                                <Doughnut data={chartData} options={chartOptions} />
+                            </div>
+                        ) : (
+                            <p className="text-gray-400 italic">Chưa có dữ liệu.</p>
                         )}
                     </div>
+
+                    {/* 3. Danh sách Báo cáo chi tiết */}
+                    <div className="lg:col-span-2 space-y-6">
+                        
+                        {/* A. Chi phí chung */}
+                        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div className="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
+                                <h3 className="font-bold text-gray-700">🏢 Hoạt động chung</h3>
+                                <button 
+                                    onClick={() => handleViewDetail(reportGeneral)}
+                                    className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                                >
+                                    Xem lịch sử
+                                </button>
+                            </div>
+                            <div className="p-4 grid grid-cols-3 gap-4 text-center">
+                                <div>
+                                    <p className="text-xs text-gray-500">Thu</p>
+                                    <p className="font-bold text-green-600">{formatCurrency(reportGeneral.revenue)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Chi</p>
+                                    <p className="font-bold text-red-600">{formatCurrency(reportGeneral.cost)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Cân đối</p>
+                                    <p className={`font-bold ${reportGeneral.revenue - reportGeneral.cost >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                                        {formatCurrency(reportGeneral.revenue - reportGeneral.cost)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* B. Danh sách Bể Nuôi */}
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-700 mb-4 border-b pb-2">🐟 Hiệu quả từng Bể nuôi</h3>
+                            <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                                {Object.values(reportByTank).map(tank => {
+                                    const net = tank.revenue - tank.cost;
+                                    const borderColor = net >= 0 ? '#3b82f6' : '#d97706';
+                                    const cardBgColor = net >= 0 ? 'bg-blue-50' : 'bg-yellow-50';
+
+                                    return (
+                                        <div 
+                                            key={tank.id} 
+                                            className={`p-3 rounded-lg shadow-sm border-l-4 ${cardBgColor}`}
+                                            style={{ borderColor: borderColor }}
+                                        >
+                                            <div className="flex justify-between items-start mb-2 border-b border-gray-200 pb-2">
+                                                <h4 className="font-bold text-lg text-gray-800">{tank.name}</h4>
+                                                <button 
+                                                    onClick={() => handleViewDetail(tank)}
+                                                    className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-100 transition"
+                                                >
+                                                    Chi tiết
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="space-y-1 text-sm">
+                                                <p className="flex justify-between items-center text-gray-700">
+                                                    <span className="font-medium">💰 Thu:</span> 
+                                                    <span className="font-bold text-green-600">{formatCurrency(tank.revenue)}</span>
+                                                </p>
+                                                <p className="flex justify-between items-center text-gray-700">
+                                                    <span className="font-medium">💸 Chi:</span> 
+                                                    <span className="font-bold text-red-600">{formatCurrency(tank.cost)}</span>
+                                                </p>
+                                                <p className="flex justify-between items-center pt-1 mt-1 border-t border-gray-300">
+                                                    <span className="font-normal text-gray-700">Lãi/Lỗ Ròng:</span>
+                                                    <span className={`font-bold ${net >= 0 ? 'text-blue-600' : 'text-yellow-700'}`}>
+                                                        {formatCurrency(Math.abs(net))} {net >= 0 ? '(Lãi)' : '(Lỗ)'}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {Object.keys(reportByTank).length === 0 && <p className="text-gray-500 text-center">Chưa có bể nuôi nào.</p>}
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
-            </div>
-        </section>
+              </div>
+            )}
 
-        <hr className="my-6" />
-
-        {/* --- PHẦN QUẢN LÝ DỮ LIỆU (BẢNG) --- */}
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Danh sách Giao dịch</h2>
-        
-        {loading ? (
-          <p className="text-center text-gray-600">Đang tải...</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white shadow-lg rounded-lg overflow-hidden">
-              <thead className="bg-blue-500 text-white">
-                <tr>
-                  <th className="py-3 px-4 text-center">STT</th>
-                  <th className="py-3 px-4">Bể</th>
-                  <th className="py-3 px-4 text-center">Loại</th>
-                  <th className="py-3 px-4 text-right">Số tiền</th>
-                  <th className="py-3 px-4">Mô tả</th>
-                  <th className="py-3 px-4 text-center">Thời gian</th>
-                  <th className="py-3 px-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record, index) => (
-                  <tr key={record._id} className="border-b hover:bg-gray-100">
-                    <td className="py-3 px-4 text-center">{index + 1}</td>
-                    <td className="py-3 px-4">{record.tankId?.name}</td>
-                    <td 
-                        className={`py-3 px-4 text-center font-bold ${
-                            record.type === 'revenue' ? 'text-green-600' : 'text-red-600'
-                        }`}
-                    >
-                      {record.type === 'revenue' ? 'Thu' : 'Chi'}
-                    </td>
-                    <td className="py-3 px-4 text-right">{formatCurrency(record.amount)}</td>
-                    <td className="py-3 px-4">{record.description || '---'}</td>
-                    <td className="py-3 px-4 text-center text-sm">{formatDateTime(record.recordedAt)}</td>
-                    <td className="py-3 px-4 flex justify-center gap-2">
-                      <button onClick={() => openPopup("view", record)} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">Xem</button>
-                      <button onClick={() => openPopup("edit", record)} className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500">Sửa</button>
-                      <button onClick={() => openPopup("delete", record)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Xóa</button>
-                    </td>
-                  </tr>
-                ))}
-                {records.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="text-center p-4">Không có giao dịch tài chính nào được ghi nhận.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* POPUP (Đã sửa nút ngang hàng) */}
-        {showPopup && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
-
-              {/* VIEW */}
-              {popupType === "view" && selectedRecord && (
-                <>
-                  <h2 className="text-2xl font-bold text-blue-600 mb-4">Chi tiết Giao dịch</h2>
-                  <p><strong>Bể:</strong> {selectedRecord.tankId?.name}</p>
-                  <p><strong>Loại:</strong> <span className={`font-bold ${selectedRecord.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>{selectedRecord.type === 'revenue' ? ' Thu (Revenue)' : ' Chi (Cost)'}</span></p>
-                  <p><strong>Số tiền:</strong> {formatCurrency(selectedRecord.amount)}</p>
-                  <p><strong>Mô tả:</strong> {selectedRecord.description || 'Không có'}</p>
-                  <p><strong>Thời gian:</strong> {formatDateTime(selectedRecord.recordedAt)}</p>
-                  <button onClick={closePopup} className="mt-4 w-full bg-blue-600 text-white py-2 rounded">Đóng</button>
-                </>
-              )}
-
-              {/* CREATE / EDIT */}
-              {(popupType === "create" || popupType === "edit") && (
-                <>
-                  <h2 className="text-2xl font-bold text-blue-600 mb-4">{popupType === "create" ? "Thêm mới Giao dịch" : "Cập nhật Giao dịch"}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <select className="w-full border px-3 py-2 rounded" name="tankId" value={form.tankId} onChange={handleChange} required>
-                      <option value="">-- Chọn bể nuôi --</option>
-                      {tanks.map((t) => (<option key={t._id} value={t._id}>{t.name} ({t.type})</option>))}
-                    </select>
-                    <select className="w-full border px-3 py-2 rounded" name="type" value={form.type} onChange={handleChange} required>
-                      <option value="cost">Chi phí (Cost)</option>
-                      <option value="revenue">Doanh thu (Revenue)</option>
-                    </select>
-                    <input type="number" name="amount" placeholder="Số tiền (VND)" className="w-full border px-3 py-2 rounded" value={form.amount} onChange={handleChange} required />
-                    <textarea name="description" placeholder="Mô tả chi tiết (Tùy chọn)" rows="3" className="w-full border px-3 py-2 rounded" value={form.description} onChange={handleChange} />
-                    
-                    {/* NÚT NGANG HÀNG */}
-                    <div className="flex space-x-3 pt-2">
-                        <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
-                            {popupType === "create" ? "Thêm mới" : "Cập nhật"}
-                        </button>
-                        <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400">
-                            Hủy
+            {/* ================= DETAIL VIEW ================= */}
+            {viewMode === 'detail' && detailData && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-800">{detailData.name}</h2>
+                            <div className="flex gap-4 mt-2 text-sm">
+                                <span className="text-green-600 font-bold">Tổng Thu: {formatCurrency(detailData.revenue)}</span>
+                                <span className="text-red-600 font-bold">Tổng Chi: {formatCurrency(detailData.cost)}</span>
+                                <span className={`font-bold ${detailData.revenue - detailData.cost >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                                    Kết quả: {formatCurrency(detailData.revenue - detailData.cost)}
+                                </span>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleBack}
+                            className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+                        >
+                            ← Quay lại
                         </button>
                     </div>
-                  </form>
-                </>
-              )}
 
-              {/* DELETE */}
-              {popupType === "delete" && selectedRecord && (
-                <>
-                  <h2 className="text-2xl font-bold text-red-600 mb-4">Xóa Giao dịch?</h2>
-                  <p>Bạn có chắc muốn xóa giao dịch **{selectedRecord.type === 'revenue' ? 'Thu' : 'Chi'}** **{formatCurrency(selectedRecord.amount)}**?</p>
-                  <button onClick={handleDelete} className="mt-4 w-full bg-red-600 text-white py-2 rounded">Xóa</button>
-                  <button onClick={closePopup} className="mt-3 w-full bg-gray-300 py-2 rounded hover:bg-gray-400">Hủy</button>
-                </>
-              )}
-            </div>
-          </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                                    <th className="py-3 px-4 text-center">Ngày</th>
+                                    <th className="py-3 px-4 text-center">Loại</th>
+                                    <th className="py-3 px-4">Nội dung / Nguồn</th>
+                                    <th className="py-3 px-4 text-right">Số tiền</th>
+                                    <th className="py-3 px-4">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-gray-700 text-sm">
+                                {detailData.history.map((item, index) => (
+                                    <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
+                                        <td className="py-3 px-4 text-center whitespace-nowrap">{formatDate(item.date)}</td>
+                                        <td className="py-3 px-4 text-center">
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                item.type === 'thu' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                {item.type === 'thu' ? 'THU' : 'CHI'}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4 font-medium">{item.description}</td>
+                                        <td className={`py-3 px-4 text-right font-bold ${
+                                            item.type === 'thu' ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                            {item.type === 'thu' ? '+' : '-'}{formatCurrency(item.amount)}
+                                        </td>
+                                        <td className="py-3 px-4 text-gray-500 italic max-w-xs truncate" title={item.note}>{item.note || '-'}</td>
+                                    </tr>
+                                ))}
+                                {detailData.history.length === 0 && (
+                                    <tr>
+                                        <td colSpan="5" className="text-center py-4 text-gray-500">Chưa có giao dịch nào.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+          </>
         )}
       </div>
     </Layout>
   );
 }
+
