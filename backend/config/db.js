@@ -1,16 +1,20 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log("✅ MongoDB connected successfully");
-  } catch (err) {
-    console.error("❌ MongoDB connection failed:", err.message);
+    const connString = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/aquaeel_db';
+
+    console.log(`Đang kết nối tới: ${connString}`); // In ra để debug xem nó đang dùng cái nào
+
+    const conn = await mongoose.connect(connString);
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
     process.exit(1);
   }
 };
 
 module.exports = connectDB;
+
+
