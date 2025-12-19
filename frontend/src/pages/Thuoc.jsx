@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
+
 import Layout from "../components/Layout";
 
 export default function MedicineManager() {
   // --- API ---
   const API_URL = "http://localhost:5000/api/Thuoc";
-  // const token = localStorage.getItem("token");
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
   // --- State ---
@@ -14,7 +13,7 @@ export default function MedicineManager() {
   const [loading, setLoading] = useState(false);
 
   const [showPopup, setShowPopup] = useState(false);
-  const [popupType, setPopupType] = useState(""); // create | edit | view | delete
+  const [popupType, setPopupType] = useState(""); 
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   // Form State
@@ -38,7 +37,7 @@ export default function MedicineManager() {
   const formatDateInput = (dateString) => dateString ? new Date(dateString).toISOString().split('T')[0] : "";
 
   // --- Fetch Data ---
-  const fetchMedicines = async () => {
+  const fetchMedicines = useCallback(async () => {
     if (!token) {
         // Mock data preview
         setMedicines([
@@ -59,11 +58,11 @@ export default function MedicineManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchMedicines();
-  }, []);
+  }, [fetchMedicines]);
 
   // --- Handle Input & Auto Calculate ---
   const handleChange = (e) => {
@@ -78,7 +77,7 @@ export default function MedicineManager() {
     setForm(prev => {
         const newForm = { ...prev, [name]: processedValue };
         
-        // Tự động tính Tổng tiền = Số lượng * Đơn giá
+        // Tự động tính Tổng tiền
         if (name === 'quantityImport' || name === 'pricePerUnit') {
             const qty = name === 'quantityImport' ? processedValue : prev.quantityImport;
             const price = name === 'pricePerUnit' ? processedValue : prev.pricePerUnit;
@@ -189,6 +188,7 @@ export default function MedicineManager() {
                   <th className="py-3 px-4 text-center w-[10%]">Đơn vị</th>
                   <th className="py-3 px-4 text-center w-[10%]">Tồn kho</th>
                   <th className="py-3 px-4 text-right w-[10%]">Giá nhập</th>
+                  <th className="py-3 px-4 text-right w-[15%]">Tổng tiền</th>
                   <th className="py-3 px-4 text-center w-[10%]">Hạn SD</th>
                   <th className="py-3 px-4 text-center w-[15%]">Thao tác</th>
                 </tr>
@@ -208,6 +208,7 @@ export default function MedicineManager() {
                         {item.currentStock}
                     </td>
                     <td className="py-3 px-4 text-right">{formatCurrency(item.pricePerUnit)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-green-600">{formatCurrency(item.totalCost)}</td>
                     <td className="py-3 px-4 text-center text-sm">{formatDate(item.expiryDate)}</td>
                     <td className="py-3 px-4 flex justify-center gap-2">
                       <button onClick={() => openPopup("view", item)} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm">Xem</button>
@@ -217,7 +218,7 @@ export default function MedicineManager() {
                   </tr>
                 ))}
                 {medicines.length === 0 && (
-                  <tr><td colSpan="8" className="text-center p-4 text-gray-500">Kho thuốc trống.</td></tr>
+                  <tr><td colSpan="9" className="text-center p-4 text-gray-500">Kho thuốc trống.</td></tr>
                 )}
               </tbody>
             </table>
@@ -258,42 +259,82 @@ export default function MedicineManager() {
               {(popupType === "create" || popupType === "edit") && (
                 <>
                   <h2 className="text-2xl font-bold mb-4 text-blue-600">{popupType === "create" ? "Nhập Thuốc Mới" : "Cập Nhật Thông Tin"}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <input type="text" name="name" placeholder="Tên thuốc" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-                    <input type="text" name="usage" placeholder="Công dụng (VD: Trị nấm...)" value={form.usage} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     
-                    <div className="flex gap-2">
-                        <select name="unit" value={form.unit} onChange={handleChange} className="w-1/3 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="chai">Chai</option>
-                            <option value="gói">Gói</option>
-                            <option value="lít">Lít</option>
-                            <option value="kg">Kg</option>
-                            <option value="viên">Viên</option>
-                        </select>
-                        <input type="number" name="quantityImport" placeholder="Số lượng nhập" value={form.quantityImport} onChange={handleChange} className="w-2/3 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
-                    </div>
-
-                    <div className="flex gap-2">
-                        <input type="number" name="pricePerUnit" placeholder="Đơn giá (VNĐ)" value={form.pricePerUnit} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
-                        <input type="number" name="totalCost" placeholder="Tổng tiền (Tự tính)" value={form.totalCost} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded bg-gray-100" readOnly />
-                    </div>
-
+                    {/* Tên thuốc */}
                     <div className="flex flex-col">
-                        <label className="text-xs text-gray-500">Hạn sử dụng</label>
+                        <label className="text-sm font-bold text-gray-700 mb-1">Tên thuốc <span className="text-red-500">*</span></label>
+                        <input type="text" name="name" placeholder="VD: Iodine Complex" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
+                    </div>
+
+                    {/* Công dụng */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Công dụng chính</label>
+                        <input type="text" name="usage" placeholder="VD: Sát khuẩn, trị nấm..." value={form.usage} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    
+                    {/* Số lượng & Đơn vị */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/3">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Đơn vị</label>
+                            <select name="unit" value={form.unit} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="chai">Chai</option>
+                                <option value="gói">Gói</option>
+                                <option value="lít">Lít</option>
+                                <option value="kg">Kg</option>
+                                <option value="viên">Viên</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col w-2/3">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Số lượng nhập <span className="text-red-500">*</span></label>
+                            <input type="number" name="quantityImport" placeholder="0" value={form.quantityImport} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
+                        </div>
+                    </div>
+
+                    {/* Giá & Tổng tiền */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Đơn giá (VNĐ) <span className="text-red-500">*</span></label>
+                            <input type="number" name="pricePerUnit" placeholder="0" value={form.pricePerUnit} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
+                        </div>
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Tổng tiền (Tự tính)</label>
+                            <input type="number" name="totalCost" placeholder="0" value={form.totalCost} onChange={handleChange} className="w-full border px-3 py-2 rounded bg-gray-100 font-bold text-green-700" readOnly />
+                        </div>
+                    </div>
+
+                    {/* Hạn sử dụng */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Hạn sử dụng</label>
                         <input type="date" name="expiryDate" value={form.expiryDate} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
 
                     <hr className="border-gray-200 my-2"/>
-                    <p className="text-sm font-bold text-gray-600">Thông tin nguồn gốc (Tùy chọn)</p>
-                    <input type="text" name="source" placeholder="Nguồn nhập / Cửa hàng" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    <div className="flex gap-2">
-                        <input type="text" name="supplierName" placeholder="Tên người bán" value={form.supplierName} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <input type="text" name="supplierPhone" placeholder="SĐT" value={form.supplierPhone} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Thông tin nguồn gốc (Tùy chọn)</p>
+
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Nguồn nhập / Cửa hàng</label>
+                        <input type="text" name="source" placeholder="VD: Đại lý thuốc thú y B" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Tên người bán</label>
+                            <input type="text" name="supplierName" placeholder="Tên" value={form.supplierName} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Số điện thoại</label>
+                            <input type="text" name="supplierPhone" placeholder="SĐT" value={form.supplierPhone} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
                     </div>
 
-                    <textarea name="notes" placeholder="Ghi chú..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Ghi chú</label>
+                        <textarea name="notes" placeholder="Ghi chú thêm..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
 
-                    <div className="flex space-x-3 pt-2">
+                    {/* Nút bấm ngang hàng */}
+                    <div className="flex space-x-3 pt-4 border-t mt-2">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">{popupType === "create" ? "Nhập kho" : "Cập nhật"}</button>
                       <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
                     </div>
@@ -320,4 +361,3 @@ export default function MedicineManager() {
     </Layout>
   );
 }
-

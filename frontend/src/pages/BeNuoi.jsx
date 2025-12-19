@@ -1,13 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
-
-// ⚠️ BƯỚC 1: Bỏ chú thích dòng này khi chạy trong dự án thật
+import { useEffect, useState } from "react";
+// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
 import Layout from "../components/Layout";
 
-// 1. Đưa hằng số ra ngoài component để tránh tạo lại mỗi lần render
-const API_URL = "http://localhost:5000/api/tank";
-
 export default function BeNuoi() {
+  const API_URL = "http://localhost:5000/api/tank";
+
   const [tanks, setTanks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,10 +20,20 @@ export default function BeNuoi() {
     location: "",
   });
 
-  // Lấy token
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
-  // Hàm xử lý thay đổi Input
+
+  if (!token) {
+    return (
+      <Layout>
+        <div className="text-center py-10 text-red-600 text-xl">
+          Bạn chưa đăng nhập!
+        </div>
+      </Layout>
+    );
+  }
+
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     const processedValue = name === 'size' && value !== '' ? Number(value) : value;
@@ -37,33 +44,42 @@ export default function BeNuoi() {
     });
   };
 
-  // 2. SỬA LỖI: Dùng useCallback để ghi nhớ hàm loadTanks
-  const loadTanks = useCallback(async () => {
+  const loadTanks = async () => {
     if (!token) {
-        // Mock data để không bị lỗi trắng trang khi xem trước
-        setTanks([]); 
+        // Mock data
+        setTanks([
+            { _id: '1', name: 'Bể số 1', status: 'raising', currentBatchId: { name: 'Lươn Nhật F1' }, currentQuantity: 2000, size: 500, location: 'Khu A' },
+            { _id: '2', name: 'Bể số 2', status: 'empty', currentQuantity: 0, size: 300, location: 'Khu B' },
+            { _id: '3', name: 'Bể số 3', status: 'raising', currentBatchId: { name: 'Lươn Đồng' }, currentQuantity: 1500, size: 1000, location: 'Khu C' }
+        ]);
         setLoading(false);
         return;
     }
 
     try {
-      const res = await axios.get(API_URL, {
+      const res = await fetch(API_URL, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setTanks(res.data);
-    } catch (err) {
-      console.error("Lỗi tải danh sách bể:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
 
-  // 3. SỬA LỖI: Thêm loadTanks vào dependency array
+      if (res.status === 401) {
+        alert("Token hết hạn hoặc chưa đăng nhập!");
+        return;
+      }
+
+      const data = await res.json();
+      const list = data.tanks || data.data || data;
+      setTanks(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.log("Error:", err);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
     loadTanks();
-  }, [loadTanks]); 
+  }, []);
 
-  // Open popup
   const openPopup = (type, tank = null) => {
     setPopupType(type);
     setSelectedTank(tank);
@@ -80,14 +96,12 @@ export default function BeNuoi() {
     }
   };
 
-  // Close popup
   const closePopup = () => {
     setShowPopup(false);
     setSelectedTank(null);
     setForm({ name: "", size: "", location: "" });
   };
 
-  // Submit form (create/edit)
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -97,52 +111,51 @@ export default function BeNuoi() {
     };
     
     try {
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
+      const method = popupType === "edit" ? "PUT" : "POST";
+      const url = popupType === "edit" ? `${API_URL}/${selectedTank._id}` : API_URL;
 
-      if (popupType === "edit") {
-        await axios.put(`${API_URL}/${selectedTank?._id}`, dataToSend, config);
-        alert("Cập nhật thành công");
-      } else {
-        await axios.post(API_URL, dataToSend, config);
-        alert("Thêm mới thành công");
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Lỗi API: ${response.status}`);
       }
 
       loadTanks();
       closePopup();
     } catch (err) {
-      console.error("Lỗi submit:", err);
-      alert(err.response?.data?.message || "Có lỗi xảy ra");
+      console.log(err);
+      alert(`Thao tác thất bại: ${err.message || 'Lỗi không xác định'}`);
     }
   };
 
-  // Delete tank
   const handleDelete = async () => {
     if (!selectedTank) return;
     try {
-      await axios.delete(`${API_URL}/${selectedTank._id}`, {
+      const response = await fetch(`${API_URL}/${selectedTank._id}`, {
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert("Xóa thành công");
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Lỗi API: ${response.status}`);
+      }
+
       loadTanks();
       closePopup();
     } catch (err) {
-      console.error("Lỗi xóa:", err);
-      alert("Xóa thất bại");
+      console.log(err);
+      alert(`Xóa thất bại: ${err.message || 'Lỗi không xác định'}`);
     }
   };
-
-  // Nếu chưa đăng nhập
-  if (!token) {
-    return (
-      <Layout>
-        <div className="text-center py-10 text-red-600 text-xl">
-          Bạn chưa đăng nhập!
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -210,34 +223,15 @@ export default function BeNuoi() {
                         <td className="py-3 px-4">{tank.location}</td>
                         
                         <td className="py-3 px-4 flex gap-2 justify-center">
-                          <button
-                            onClick={() => openPopup("view", tank)}
-                            className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
-                          >
-                            Xem
-                          </button>
-                          <button
-                            onClick={() => openPopup("edit", tank)}
-                            className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => openPopup("delete", tank)}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                          >
-                            Xóa
-                          </button>
+                          <button onClick={() => openPopup("view", tank)} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm">Xem</button>
+                          <button onClick={() => openPopup("edit", tank)} className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm">Sửa</button>
+                          <button onClick={() => openPopup("delete", tank)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Xóa</button>
                         </td>
                       </tr>
                     );
                   })}
                   {tanks.length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="text-center p-4 text-gray-500">
-                        Chưa có dữ liệu bể nuôi.
-                      </td>
-                    </tr>
+                    <tr><td colSpan="8" className="text-center p-4 text-gray-500">Chưa có dữ liệu bể nuôi.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -249,88 +243,119 @@ export default function BeNuoi() {
             <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-40 backdrop-blur-sm z-50">
               <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl relative">
                 
-                {/* VIEW */}
+                {/* VIEW (Xem chi tiết) */}
                 {popupType === "view" && selectedTank && (
                   <>
                     <h2 className="text-2xl font-bold mb-4 text-blue-600">Chi tiết bể</h2>
                     <div className="space-y-3 text-gray-700">
-                        <p><strong>Tên bể:</strong> {selectedTank.name}</p>
-                        <p>
-                            <strong>Trạng thái:</strong>{' '}
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Tên bể:</span>
+                            <span>{selectedTank.name}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Trạng thái:</span>
                             {selectedTank.status === 'raising' ? (
                                 <span className="text-blue-600 font-bold">Đang nuôi</span>
                             ) : (
                                 <span className="text-green-600 font-bold">Trống</span>
                             )}
-                        </p>
+                        </div>
                         
                         {selectedTank.status === 'raising' && (
-                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <p><strong>Giống lươn:</strong> {selectedTank.currentBatchId?.name || selectedTank.type || "Không rõ"}</p>
-                                <p><strong>Số lượng hiện tại:</strong> {selectedTank.currentQuantity || 0} con</p>
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm">
+                                <p className="mb-1"><strong>Giống lươn:</strong> {selectedTank.currentBatchId?.name || selectedTank.type || "Không rõ"}</p>
+                                <p><strong>Số lượng hiện tại:</strong> <span className="font-bold text-red-600">{selectedTank.currentQuantity || 0} con</span></p>
                             </div>
                         )}
                         
-                        <p><strong>Dung tích:</strong> {selectedTank.size} L</p>
-                        <p><strong>Vị trí:</strong> {selectedTank.location}</p>
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Dung tích:</span>
+                            <span>{selectedTank.size} Lít</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Vị trí:</span>
+                            <span>{selectedTank.location}</span>
+                        </div>
                     </div>
-                    <button
-                      onClick={closePopup}
-                      className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
-                    >
-                      Đóng
-                    </button>
+                    <button onClick={closePopup} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Đóng</button>
                   </>
                 )}
 
-                {/* CREATE / EDIT */}
+                {/* CREATE / EDIT FORM (Đã thêm Label) */}
                 {(popupType === "create" || popupType === "edit") && (
                   <>
                     <h2 className="text-2xl font-bold mb-4 text-blue-600">
                       {popupType === "create" ? "Thêm bể mới" : "Cập nhật bể"}
                     </h2>
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                      <input type="text" name="name" placeholder="Tên bể" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required/>
-                      <input type="number" name="size" placeholder="Dung tích (L)" value={form.size} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required/>
-                      <input type="text" name="location" placeholder="Vị trí" value={form.location} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required/>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      
+                      {/* Tên bể */}
+                      <div className="flex flex-col">
+                          <label className="text-sm font-bold text-gray-700 mb-1">Tên bể nuôi <span className="text-red-500">*</span></label>
+                          <input 
+                            type="text" 
+                            name="name" 
+                            placeholder="Ví dụ: Bể số 1" 
+                            value={form.name} 
+                            onChange={handleChange} 
+                            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                            required
+                          />
+                      </div>
+                      
+                      {/* Dung tích */}
+                      <div className="flex flex-col">
+                          <label className="text-sm font-bold text-gray-700 mb-1">Dung tích (Lít) <span className="text-red-500">*</span></label>
+                          <input 
+                            type="number" 
+                            name="size" 
+                            placeholder="Ví dụ: 500" 
+                            value={form.size} 
+                            onChange={handleChange} 
+                            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                            required
+                            min="0"
+                          />
+                      </div>
 
-                      <div className="flex space-x-3 pt-2">
-                        <button 
-                          type="submit"
-                          className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
-                        >
-                          {popupType === "create" ? "Thêm mới" : "Cập nhật"}
+                      {/* Vị trí */}
+                      <div className="flex flex-col">
+                          <label className="text-sm font-bold text-gray-700 mb-1">Vị trí đặt bể</label>
+                          <input 
+                            type="text" 
+                            name="location" 
+                            placeholder="Ví dụ: Khu A - Ngoài trời" 
+                            value={form.location} 
+                            onChange={handleChange} 
+                            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                            required
+                          />
+                      </div>
+
+                      {/* Nút ngang hàng */}
+                      <div className="flex space-x-3 pt-4">
+                        <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                          {popupType === "create" ? "Lưu lại" : "Cập nhật"}
                         </button>
-                        <button
-                          type="button" 
-                          onClick={closePopup}
-                          className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition"
-                        >
-                          Hủy
+                        <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition">
+                          Hủy bỏ
                         </button>
                       </div>
                     </form>
                   </>
                 )}
 
-                {/* DELETE */}
+                {/* DELETE CONFIRM */}
                 {popupType === "delete" && selectedTank && (
                   <>
                     <h2 className="text-2xl font-bold mb-4 text-red-600">Xóa bể?</h2>
-                    <p className="mb-4 text-gray-700">Bạn có chắc muốn xóa <strong>{selectedTank.name}</strong>?</p>
+                    <p className="mb-4 text-gray-700">
+                        Bạn có chắc muốn xóa <strong>{selectedTank.name}</strong> không? <br/>
+                        <span className="text-sm text-red-500 italic">Lưu ý: Hành động này không thể hoàn tác!</span>
+                    </p>
                     <div className="flex space-x-3">
-                        <button
-                        onClick={handleDelete}
-                        className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
-                        >
-                        Xóa
-                        </button>
-                        <button
-                        onClick={closePopup}
-                        className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition"
-                        >
-                        Hủy
-                        </button>
+                        <button onClick={handleDelete} className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Xóa ngay</button>
+                        <button onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition">Hủy bỏ</button>
                     </div>
                   </>
                 )}
@@ -342,3 +367,4 @@ export default function BeNuoi() {
     </Layout>
   );
 }
+

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
+
 import Layout from "../components/Layout";
 
 export default function HarvestManager() {
@@ -8,7 +8,6 @@ export default function HarvestManager() {
   const API_HARVEST = "http://localhost:5000/api/XuatBan";
   const API_TANK = "http://localhost:5000/api/tank";
   
-  // const token = localStorage.getItem("token");
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
   // --- State ---
@@ -102,7 +101,6 @@ export default function HarvestManager() {
     setSelectedRecord(record);
 
     if (record) {
-      // Tính ngược lại đơn giá nếu có tổng tiền và tổng trọng lượng
       const calculatedPrice = (record.totalRevenue && record.totalWeight) 
         ? Math.round(record.totalRevenue / record.totalWeight) 
         : "";
@@ -113,14 +111,13 @@ export default function HarvestManager() {
         buyerPhone: record.buyerPhone,
         saleDate: formatDateInput(record.saleDate),
         totalWeight: record.totalWeight,
-        pricePerKg: calculatedPrice, // Điền giá tính được
+        pricePerKg: calculatedPrice, 
         totalRevenue: record.totalRevenue,
         quantitySold: record.quantitySold,
         isFinalHarvest: record.isFinalHarvest,
         notes: record.notes || ""
       });
     } else {
-      // Reset form cho Create
       setForm({
         tankId: "",
         buyerName: "", buyerPhone: "",
@@ -149,11 +146,9 @@ export default function HarvestManager() {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       
       if (popupType === "edit") {
-        // Gọi API PUT để cập nhật
         await axios.put(`${API_HARVEST}/${selectedRecord._id}`, form, config);
         alert("Cập nhật phiếu bán thành công!");
       } else {
-        // Gọi API POST để tạo mới
         await axios.post(API_HARVEST, form, config);
         alert(form.isFinalHarvest ? "Đã xuất bán và chốt ao thành công!" : "Đã bán tỉa thành công!");
       }
@@ -172,7 +167,7 @@ export default function HarvestManager() {
       await axios.delete(`${API_HARVEST}/${selectedRecord._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert("Xóa phiếu bán thành công");
+      alert("Xóa phiếu bán thành công (Đã hoàn lại số lượng vào bể nếu bể đang nuôi)");
       fetchData();
       closePopup();
     } catch (err) {
@@ -236,7 +231,6 @@ export default function HarvestManager() {
                     
                     <td className="py-3 px-4 flex justify-center gap-2">
                       <button onClick={() => openPopup("view", item)} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm">Xem</button>
-                      {/* Nút Sửa đã được thêm lại */}
                       <button onClick={() => openPopup("edit", item)} className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm">Sửa</button>
                       <button onClick={() => openPopup("delete", item)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Xóa</button>
                     </td>
@@ -291,21 +285,19 @@ export default function HarvestManager() {
                       {popupType === "create" ? "Lập Phiếu Xuất Bán" : "Cập Nhật Phiếu Bán"}
                   </h2>
 
-                  {/* Cảnh báo khi sửa */}
                   {popupType === "edit" && (
                       <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded text-sm">
-                          ⚠️ <strong>Lưu ý:</strong> Việc sửa số lượng con hoặc thay đổi loại hình bán (Tát ao/Bán tỉa) có thể làm sai lệch số lượng tồn kho trong bể. Hãy kiểm tra kỹ!
+                          ⚠️ <strong>Lưu ý:</strong> Việc sửa số lượng con hoặc thay đổi loại hình bán có thể làm sai lệch số lượng tồn kho trong bể.
                       </div>
                   )}
 
-                  <form onSubmit={handleSubmit} className="space-y-3">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     
                     {/* Chọn Bể */}
                     <div className="flex flex-col">
-                        <label className="text-sm font-bold text-gray-600 mb-1">Chọn Bể Xuất Bán</label>
+                        <label className="text-sm font-bold text-gray-700 mb-1">Chọn Bể Xuất Bán <span className="text-red-500">*</span></label>
                         <select name="tankId" value={form.tankId} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
                             <option value="">-- Chọn bể --</option>
-                            {/* Khi sửa, vẫn hiện bể hiện tại dù trạng thái nó có thể đã là empty */}
                             {tanks.filter(t => t.status === 'raising' || t._id === form.tankId).map((t) => (
                                 <option key={t._id} value={t._id}>
                                     {t.name} {t.status === 'raising' ? `(Đang có: ${t.currentQuantity} con)` : '(Đã trống)'}
@@ -315,49 +307,65 @@ export default function HarvestManager() {
                     </div>
 
                     {/* Thông tin bán hàng */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2 bg-gray-50 p-3 rounded border">
-                            <div className="flex gap-2 mb-2">
-                                <input type="number" name="totalWeight" placeholder="Tổng số ký (Kg)" value={form.totalWeight} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded" required min="0" step="0.1"/>
-                                <input type="number" name="pricePerKg" placeholder="Giá bán (VNĐ/kg)" value={form.pricePerKg} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded" required min="0" />
+                    <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                        <p className="text-sm font-bold text-blue-800 mb-2 border-b pb-1">Chi tiết bán hàng</p>
+                        
+                        <div className="flex gap-4 mb-3">
+                            <div className="w-1/2">
+                                <label className="text-xs font-bold text-gray-600">Tổng số ký (Kg) <span className="text-red-500">*</span></label>
+                                <input type="number" name="totalWeight" placeholder="0" value={form.totalWeight} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" step="0.1"/>
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <span className="text-sm font-bold">Thành tiền:</span>
-                                <input type="number" name="totalRevenue" placeholder="Tổng tiền" value={form.totalRevenue} onChange={handleChange} className="w-full border px-3 py-2 rounded bg-green-50 font-bold text-green-700" required readOnly />
+                            <div className="w-1/2">
+                                <label className="text-xs font-bold text-gray-600">Giá bán (VNĐ/kg) <span className="text-red-500">*</span></label>
+                                <input type="number" name="pricePerKg" placeholder="0" value={form.pricePerKg} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
                             </div>
                         </div>
+                        
+                        <div className="flex flex-col">
+                            <label className="text-xs font-bold text-gray-600">Thành tiền (Tự tính)</label>
+                            <input type="number" name="totalRevenue" placeholder="0" value={form.totalRevenue} onChange={handleChange} className="w-full border px-3 py-2 rounded bg-green-50 font-bold text-green-700 text-lg" required readOnly />
+                        </div>
+                    </div>
 
-                        {/* Số lượng con để trừ kho */}
-                        <div className="col-span-2">
-                            <label className="text-xs text-red-500 font-bold">Số con ước tính (Để trừ tồn kho bể):</label>
-                            <input type="number" name="quantitySold" placeholder="VD: 200 con" value={form.quantitySold} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="1" />
-                        </div>
+                    {/* Số lượng con để trừ kho */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-red-600 mb-1">Số con ước tính (Để trừ tồn kho bể) <span className="text-red-500">*</span></label>
+                        <input type="number" name="quantitySold" placeholder="VD: 200 con" value={form.quantitySold} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="1" />
                     </div>
 
                     {/* Checkbox Tát ao */}
-                    <div className="flex items-center gap-2 p-2 border rounded hover:bg-red-50 cursor-pointer" onClick={() => setForm({...form, isFinalHarvest: !form.isFinalHarvest})}>
-                        <input type="checkbox" name="isFinalHarvest" checked={form.isFinalHarvest} onChange={handleChange} className="w-5 h-5 text-blue-600" />
+                    <div className="flex items-center gap-2 p-3 border rounded hover:bg-red-50 cursor-pointer transition bg-gray-50" onClick={() => setForm({...form, isFinalHarvest: !form.isFinalHarvest})}>
+                        <input type="checkbox" name="isFinalHarvest" checked={form.isFinalHarvest} onChange={handleChange} className="w-5 h-5 text-blue-600 cursor-pointer" />
                         <div>
-                            <span className="font-bold text-gray-700">Đây là đợt Tát Ao (Bán hết)?</span>
-                            {form.isFinalHarvest && <p className="text-xs text-red-600 font-bold">⚠️ Cảnh báo: Bể sẽ được chuyển về trạng thái TRỐNG sau khi lưu!</p>}
+                            <span className="font-bold text-gray-800">Đây là đợt Tát Ao (Bán hết)?</span>
+                            {form.isFinalHarvest && <p className="text-xs text-red-600 font-bold mt-1">⚠️ Cảnh báo: Bể sẽ được chuyển về trạng thái TRỐNG sau khi lưu!</p>}
                         </div>
                     </div>
 
-                    <hr className="my-2"/>
+                    <hr className="my-2 border-gray-200"/>
 
-                    <div className="flex gap-2">
-                        <input type="text" name="buyerName" placeholder="Tên người mua" value={form.buyerName} onChange={handleChange} className="w-2/3 border px-3 py-2 rounded" />
-                        <input type="text" name="buyerPhone" placeholder="SĐT" value={form.buyerPhone} onChange={handleChange} className="w-1/3 border px-3 py-2 rounded" />
+                    <div className="flex gap-4">
+                        <div className="w-2/3">
+                            <label className="text-xs font-bold text-gray-600">Tên người mua</label>
+                            <input type="text" name="buyerName" placeholder="Tên" value={form.buyerName} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                        <div className="w-1/3">
+                            <label className="text-xs font-bold text-gray-600">SĐT</label>
+                            <input type="text" name="buyerPhone" placeholder="SĐT" value={form.buyerPhone} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
                     </div>
 
                     <div className="flex flex-col">
-                        <label className="text-xs text-gray-500">Ngày bán</label>
+                        <label className="text-xs font-bold text-gray-600">Ngày bán <span className="text-red-500">*</span></label>
                         <input type="date" name="saleDate" value={form.saleDate} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
                     </div>
 
-                    <textarea name="notes" placeholder="Ghi chú (Phân loại giá...)" rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <div className="flex flex-col">
+                        <label className="text-xs font-bold text-gray-600">Ghi chú</label>
+                        <textarea name="notes" placeholder="Ghi chú thêm..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
 
-                    <div className="flex space-x-3 pt-2">
+                    <div className="flex space-x-3 pt-4 border-t mt-2">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
                           {popupType === "create" ? "Xác nhận Bán" : "Cập nhật"}
                       </button>

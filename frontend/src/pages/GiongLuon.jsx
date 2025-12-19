@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
+
 import Layout from "../components/Layout";
 
 export default function SeedBatchManager() {
@@ -8,7 +8,6 @@ export default function SeedBatchManager() {
   const API_SEED = "http://localhost:5000/api/GiongLuon";
   const API_TANK = "http://localhost:5000/api/tank";
   
-  // const token = localStorage.getItem("token");
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
   // --- State ---
@@ -39,7 +38,7 @@ export default function SeedBatchManager() {
 
   // --- Fetch Data ---
   const fetchData = async () => {
-    // Dữ liệu giả lập cho Preview (Cập nhật theo Model Tank mới)
+    // Dữ liệu giả lập cho Preview
     if (!token) {
         setBatches([
             { _id: '1', name: 'Lươn Nhật F1', unit: 'con', quantity: 2000, source: 'Trại giống A', totalCost: 6000000, tankId: { name: 'Bể số 1' }, importDate: '2023-10-01', notes: 'Giống khỏe' },
@@ -60,7 +59,7 @@ export default function SeedBatchManager() {
         axios.get(API_TANK, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setBatches(resSeed.data);
-      setTanks(resTank.data); // Lấy dữ liệu bể thực tế từ API
+      setTanks(resTank.data);
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
     } finally {
@@ -92,7 +91,7 @@ export default function SeedBatchManager() {
     if (record) {
       setForm({
         name: record.name,
-        unit: record.unit || "con", // Thêm fallback giá trị mặc định
+        unit: record.unit || "con",
         quantity: record.quantity,
         source: record.source || "",
         totalCost: record.totalCost,
@@ -127,15 +126,13 @@ export default function SeedBatchManager() {
     if (!form.tankId) { alert("Vui lòng chọn bể nuôi để thả giống!"); return; }
 
     try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
       if (popupType === "edit") {
-        await axios.put(`${API_SEED}/${selectedRecord._id}`, form, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.put(`${API_SEED}/${selectedRecord._id}`, form, config);
         alert("Cập nhật thành công");
       } else {
-        await axios.post(API_SEED, form, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.post(API_SEED, form, config);
         alert("Nhập giống thành công!");
       }
       fetchData();
@@ -195,9 +192,7 @@ export default function SeedBatchManager() {
               </thead>
               <tbody>
                 {batches.map((item, index) => {
-                  // Xử lý an toàn: Nếu item.unit không có, mặc định là 'con'
                   const unitDisplay = (item.unit || 'con').toUpperCase();
-                  
                   return (
                     <tr key={item._id} className="border-b hover:bg-gray-100">
                       <td className="py-3 px-4 text-center">{index + 1}</td>
@@ -253,41 +248,61 @@ export default function SeedBatchManager() {
               {(popupType === "create" || popupType === "edit") && (
                 <>
                   <h2 className="text-2xl font-bold mb-4 text-blue-600">{popupType === "create" ? "Nhập Giống Mới" : "Cập Nhật Lô Giống"}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-3">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     
-                    <input type="text" name="name" placeholder="Tên giống (VD: Lươn Nhật F1)" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" required />
-                    
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Tên giống lươn <span className="text-red-500">*</span></label>
+                        <input type="text" name="name" placeholder="VD: Lươn Nhật F1" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
+                    </div>
+
                     <div className="flex gap-2">
-                        <input type="number" name="quantity" placeholder="Số lượng" value={form.quantity} onChange={handleChange} className="w-2/3 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" required min="1" />
-                        <select name="unit" value={form.unit} onChange={handleChange} className="w-1/3 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none">
-                            <option value="con">Con</option>
-                            <option value="kg">Kg</option>
+                        <div className="flex flex-col w-2/3">
+                             <label className="text-sm font-bold text-gray-700 mb-1">Số lượng <span className="text-red-500">*</span></label>
+                             <input type="number" name="quantity" placeholder="0" value={form.quantity} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="1" />
+                        </div>
+                        <div className="flex flex-col w-1/3">
+                             <label className="text-sm font-bold text-gray-700 mb-1">Đơn vị</label>
+                             <select name="unit" value={form.unit} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="con">Con</option>
+                                <option value="kg">Kg</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Tổng chi phí nhập (VNĐ) <span className="text-red-500">*</span></label>
+                        <input type="number" name="totalCost" placeholder="0" value={form.totalCost} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
+                    </div>
+                    
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Nguồn nhập (Trại/Thương lái)</label>
+                        <input type="text" name="source" placeholder="VD: Trại giống A" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Chọn bể thả nuôi <span className="text-red-500">*</span></label>
+                        <select name="tankId" value={form.tankId} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                            <option value="">-- Chọn bể --</option>
+                            {tanks.map((t) => (
+                                <option key={t._id} value={t._id}>
+                                    {t.name} ({t.status === 'empty' ? 'Trống' : 'Đang nuôi'})
+                                </option>
+                            ))}
                         </select>
                     </div>
 
-                    <input type="number" name="totalCost" placeholder="Tổng chi phí nhập (VNĐ)" value={form.totalCost} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" required min="0" />
-                    
-                    <input type="text" name="source" placeholder="Nguồn nhập (Trại giống...)" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" />
-
-                    {/* SỬA LẠI DROPDOWN CHỌN BỂ THEO MODEL MỚI */}
-                    <select name="tankId" value={form.tankId} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" required>
-                        <option value="">-- Chọn bể thả nuôi --</option>
-                        {tanks.map((t) => (
-                            <option key={t._id} value={t._id}>
-                                {t.name} - {t.location} ({t.size} L)
-                            </option>
-                        ))}
-                    </select>
-
                     <div className="flex flex-col">
-                        <label className="text-sm text-gray-600 mb-1">Ngày nhập giống:</label>
-                        <input type="date" name="importDate" value={form.importDate} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" required />
+                        <label className="text-sm font-bold text-gray-700 mb-1">Ngày nhập giống</label>
+                        <input type="date" name="importDate" value={form.importDate} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
                     </div>
 
-                    <textarea name="notes" placeholder="Ghi chú (Tình trạng giống...)" rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" />
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Ghi chú thêm</label>
+                        <textarea name="notes" placeholder="VD: Giống khỏe, hao hụt ít..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
 
                     {/* NÚT NGANG HÀNG */}
-                    <div className="flex space-x-3 pt-2">
+                    <div className="flex space-x-3 pt-4 border-t mt-2">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">{popupType === "create" ? "Lưu Lại" : "Cập Nhật"}</button>
                       <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
                     </div>
@@ -314,3 +329,4 @@ export default function SeedBatchManager() {
     </Layout>
   );
 }
+

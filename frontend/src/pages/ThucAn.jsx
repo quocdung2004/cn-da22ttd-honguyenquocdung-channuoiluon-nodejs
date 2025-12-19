@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích dòng dưới đây
+
 import Layout from "../components/Layout";
 
 export default function FoodManager() {
   // --- API ---
-  const API_URL = "http://localhost:5000/api/ThucAn"; // Route đã tạo ở bước trước
-  // const token = localStorage.getItem("token");
+  const API_URL = "http://localhost:5000/api/ThucAn"; 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem("token") : "";
 
   // --- State ---
@@ -14,13 +13,13 @@ export default function FoodManager() {
   const [loading, setLoading] = useState(false);
 
   const [showPopup, setShowPopup] = useState(false);
-  const [popupType, setPopupType] = useState(""); // create | edit | view | delete
+  const [popupType, setPopupType] = useState(""); 
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   // Form State
   const [form, setForm] = useState({
     name: "",
-    type: "viên nổi", // Mặc định
+    type: "viên nổi", 
     protein: "",
     unit: "kg",
     quantityImport: "",
@@ -39,7 +38,7 @@ export default function FoodManager() {
   const formatDateInput = (dateString) => dateString ? new Date(dateString).toISOString().split('T')[0] : "";
 
   // --- Fetch Data ---
-  const fetchFoods = async () => {
+  const fetchFoods = useCallback(async () => {
     if (!token) {
         // Mock data preview
         setFoods([
@@ -60,18 +59,17 @@ export default function FoodManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchFoods();
-  }, []);
+  }, [fetchFoods]);
 
   // --- Handle Input & Auto Calculate ---
   const handleChange = (e) => {
     const { name, value } = e.target;
     let processedValue = value;
 
-    // Ép kiểu số cho các trường số
     if (['quantityImport', 'pricePerUnit', 'totalCost', 'protein'].includes(name)) {
         processedValue = value === "" ? "" : Number(value);
     }
@@ -79,7 +77,7 @@ export default function FoodManager() {
     setForm(prev => {
         const newForm = { ...prev, [name]: processedValue };
         
-        // Tự động tính Tổng tiền = Số lượng * Đơn giá
+        // Tự động tính Tổng tiền
         if (name === 'quantityImport' || name === 'pricePerUnit') {
             const qty = name === 'quantityImport' ? processedValue : prev.quantityImport;
             const price = name === 'pricePerUnit' ? processedValue : prev.pricePerUnit;
@@ -112,7 +110,6 @@ export default function FoodManager() {
         notes: record.notes || ""
       });
     } else {
-      // Reset form
       setForm({
         name: "", type: "viên nổi", protein: "", unit: "kg", quantityImport: "", pricePerUnit: "", 
         totalCost: "", supplierName: "", supplierPhone: "", source: "", expiryDate: "", notes: ""
@@ -192,7 +189,7 @@ export default function FoodManager() {
                   <th className="py-3 px-4 text-center w-[5%]">Đạm</th>
                   <th className="py-3 px-4 text-center w-[10%]">Tồn kho</th>
                   <th className="py-3 px-4 text-right w-[10%]">Giá nhập</th>
-                  <th className="py-3 px-4 text-right w-[15%]">Tổng tiền</th> {/* Thêm cột Tổng tiền */}
+                  <th className="py-3 px-4 text-right w-[15%]">Tổng tiền</th>
                   <th className="py-3 px-4 text-center w-[10%]">Hạn SD</th>
                   <th className="py-3 px-4 text-center w-[15%]">Thao tác</th>
                 </tr>
@@ -208,7 +205,6 @@ export default function FoodManager() {
                         {item.currentStock} {item.unit}
                     </td>
                     <td className="py-3 px-4 text-right text-sm">{formatCurrency(item.pricePerUnit)}</td>
-                    {/* Hiển thị Tổng tiền */}
                     <td className="py-3 px-4 text-right font-bold text-green-600">{formatCurrency(item.totalCost)}</td>
                     <td className="py-3 px-4 text-center text-sm">{formatDate(item.expiryDate)}</td>
                     <td className="py-3 px-4 flex justify-center gap-2">
@@ -236,9 +232,10 @@ export default function FoodManager() {
                 <>
                   <h2 className="text-2xl font-bold mb-4 text-blue-600">Chi tiết Thức Ăn</h2>
                   <div className="grid grid-cols-2 gap-4 text-gray-700">
-                    <div className="col-span-2"><p><strong>Tên:</strong> {selectedRecord.name}</p></div>
-                    <p><strong>Loại:</strong> {selectedRecord.type}</p>
-                    <p><strong>Đạm:</strong> {selectedRecord.protein}%</p>
+                    <div className="col-span-2 p-3 bg-blue-50 rounded border border-blue-100">
+                        <p className="font-semibold text-lg">{selectedRecord.name}</p>
+                        <p className="text-sm text-gray-500">Loại: {selectedRecord.type} - Đạm: {selectedRecord.protein}%</p>
+                    </div>
                     
                     <p><strong>Tồn kho:</strong> <span className="text-blue-600 font-bold">{selectedRecord.currentStock} {selectedRecord.unit}</span></p>
                     <p><strong>Hạn SD:</strong> {formatDate(selectedRecord.expiryDate)}</p>
@@ -247,11 +244,11 @@ export default function FoodManager() {
                     <p><strong>Tổng tiền lô:</strong> <span className="text-red-600 font-bold">{formatCurrency(selectedRecord.totalCost)}</span></p>
 
                     <div className="col-span-2 border-t pt-2 mt-2">
-                        <p className="text-sm text-gray-500 font-bold">Thông tin nguồn gốc:</p>
+                        <p className="text-sm text-gray-500 font-bold">Thông tin nhà cung cấp:</p>
                         <p>Nơi bán: {selectedRecord.source || '---'}</p>
                         <p>Người liên hệ: {selectedRecord.supplierName || '---'} - {selectedRecord.supplierPhone}</p>
                     </div>
-                    <div className="col-span-2"><p><strong>Ghi chú:</strong> {selectedRecord.notes}</p></div>
+                    <div className="col-span-2"><p><strong>Ghi chú:</strong> {selectedRecord.notes || "Không có"}</p></div>
                   </div>
                   <button onClick={closePopup} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Đóng</button>
                 </>
@@ -261,51 +258,93 @@ export default function FoodManager() {
               {(popupType === "create" || popupType === "edit") && (
                 <>
                   <h2 className="text-2xl font-bold mb-4 text-blue-600">{popupType === "create" ? "Nhập Thức Ăn Mới" : "Cập Nhật Thông Tin"}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <input type="text" name="name" placeholder="Tên thức ăn (VD: Cám 40 đạm...)" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     
-                    <div className="flex gap-2">
-                        <select name="type" value={form.type} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="viên nổi">Viên nổi</option>
-                            <option value="viên chìm">Viên chìm</option>
-                            <option value="bột">Bột</option>
-                            <option value="tươi sống">Tươi sống</option>
-                            <option value="khác">Khác</option>
-                        </select>
-                        <input type="number" name="protein" placeholder="Độ đạm (%)" value={form.protein} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    </div>
-
-                    <div className="flex gap-2">
-                        <select name="unit" value={form.unit} onChange={handleChange} className="w-1/3 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="kg">Kg</option>
-                            <option value="bao">Bao</option>
-                            <option value="tấn">Tấn</option>
-                            <option value="gói">Gói</option>
-                        </select>
-                        <input type="number" name="quantityImport" placeholder="Số lượng nhập" value={form.quantityImport} onChange={handleChange} className="w-2/3 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
-                    </div>
-
-                    <div className="flex gap-2">
-                        <input type="number" name="pricePerUnit" placeholder="Đơn giá (VNĐ)" value={form.pricePerUnit} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
-                        <input type="number" name="totalCost" placeholder="Tổng tiền (Tự tính)" value={form.totalCost} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded bg-gray-100" readOnly />
-                    </div>
-
+                    {/* Tên thức ăn */}
                     <div className="flex flex-col">
-                        <label className="text-xs text-gray-500">Hạn sử dụng</label>
+                        <label className="text-sm font-bold text-gray-700 mb-1">Tên thức ăn <span className="text-red-500">*</span></label>
+                        <input type="text" name="name" placeholder="VD: Cám 40 đạm..." value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
+                    </div>
+                    
+                    {/* Loại & Đạm */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Loại thức ăn</label>
+                            <select name="type" value={form.type} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="viên nổi">Viên nổi</option>
+                                <option value="viên chìm">Viên chìm</option>
+                                <option value="bột">Bột</option>
+                                <option value="tươi sống">Tươi sống</option>
+                                <option value="khác">Khác</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Độ đạm (%)</label>
+                            <input type="number" name="protein" placeholder="VD: 40" value={form.protein} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                    </div>
+
+                    {/* Số lượng & Đơn vị */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/3">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Đơn vị</label>
+                            <select name="unit" value={form.unit} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="kg">Kg</option>
+                                <option value="bao">Bao</option>
+                                <option value="tấn">Tấn</option>
+                                <option value="gói">Gói</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col w-2/3">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Số lượng nhập <span className="text-red-500">*</span></label>
+                            <input type="number" name="quantityImport" placeholder="0" value={form.quantityImport} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
+                        </div>
+                    </div>
+
+                    {/* Giá & Tổng tiền */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Đơn giá (VNĐ) <span className="text-red-500">*</span></label>
+                            <input type="number" name="pricePerUnit" placeholder="0" value={form.pricePerUnit} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
+                        </div>
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Thành tiền (Tự tính)</label>
+                            <input type="number" name="totalCost" placeholder="0" value={form.totalCost} onChange={handleChange} className="w-full border px-3 py-2 rounded bg-gray-100 font-bold text-green-700" readOnly />
+                        </div>
+                    </div>
+
+                    {/* Hạn sử dụng */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Hạn sử dụng</label>
                         <input type="date" name="expiryDate" value={form.expiryDate} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
 
                     <hr className="border-gray-200 my-2"/>
-                    <p className="text-sm font-bold text-gray-600">Thông tin nguồn gốc (Tùy chọn)</p>
-                    <input type="text" name="source" placeholder="Nguồn nhập / Cửa hàng" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    <div className="flex gap-2">
-                        <input type="text" name="supplierName" placeholder="Tên người bán" value={form.supplierName} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <input type="text" name="supplierPhone" placeholder="SĐT" value={form.supplierPhone} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Thông tin nguồn gốc (Tùy chọn)</p>
+                    
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Nguồn nhập / Cửa hàng</label>
+                        <input type="text" name="source" placeholder="VD: Đại lý thức ăn A" value={form.source} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
 
-                    <textarea name="notes" placeholder="Ghi chú..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <div className="flex gap-4">
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Tên người bán</label>
+                            <input type="text" name="supplierName" placeholder="Tên" value={form.supplierName} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                        <div className="flex flex-col w-1/2">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Số điện thoại</label>
+                            <input type="text" name="supplierPhone" placeholder="SĐT" value={form.supplierPhone} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                    </div>
 
-                    <div className="flex space-x-3 pt-2">
+                    <div className="flex flex-col">
+                        <label className="text-sm font-bold text-gray-700 mb-1">Ghi chú</label>
+                        <textarea name="notes" placeholder="Ghi chú thêm..." rows="2" value={form.notes} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+
+                    {/* Nút bấm ngang hàng */}
+                    <div className="flex space-x-3 pt-4 border-t mt-2">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">{popupType === "create" ? "Nhập kho" : "Cập nhật"}</button>
                       <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
                     </div>

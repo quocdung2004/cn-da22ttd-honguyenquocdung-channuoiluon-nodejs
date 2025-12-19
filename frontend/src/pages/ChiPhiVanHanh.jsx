@@ -123,107 +123,187 @@ export default function OperationalExpenseManager() {
   return (
     <Layout>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-blue-600">Chi Phí Vận Hành</h1>
-          <button onClick={() => openPopup("create")} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-            + Thêm Chi Phí
-          </button>
-        </div>
-
-        {loading ? <p className="text-center text-gray-600">Đang tải...</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
-              <thead className="bg-blue-500 text-white">
-                <tr>
-                  <th className="py-3 px-4 text-center w-[5%]">STT</th>
-                  <th className="py-3 px-4 text-left w-[20%]">Khoản chi</th>
-                  <th className="py-3 px-4 text-center w-[15%]">Loại</th>
-                  <th className="py-3 px-4 text-right w-[15%]">Số tiền</th>
-                  <th className="py-3 px-4 text-center w-[15%]">Ngày chi</th>
-                  <th className="py-3 px-4 text-center w-[15%]">Gắn với Bể</th>
-                  <th className="py-3 px-4 text-center w-[15%]">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((item, index) => (
-                  <tr key={item._id} className="border-b hover:bg-gray-100">
-                    <td className="py-3 px-4 text-center">{index + 1}</td>
-                    <td className="py-3 px-4 font-medium">{item.name}</td>
-                    <td className="py-3 px-4 text-center text-sm">
-                        <span className={`px-2 py-1 rounded border ${
-                            item.type === 'Tiền điện' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
-                            item.type === 'Tiền nước' ? 'bg-blue-100 text-blue-700 border-blue-300' :
-                            'bg-gray-100 text-gray-700 border-gray-300'
-                        }`}>
-                            {item.type}
-                        </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td>
-                    <td className="py-3 px-4 text-center">{formatDate(item.date)}</td>
-                    <td className="py-3 px-4 text-center text-sm">{item.relatedTankId?.name || 'Chung'}</td>
-                    <td className="py-3 px-4 flex justify-center gap-2">
-                      <button onClick={() => openPopup("edit", item)} className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm">Sửa</button>
-                      <button onClick={() => openPopup("delete", item)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Xóa</button>
-                    </td>
-                  </tr>
-                ))}
-                {expenses.length === 0 && <tr><td colSpan="7" className="text-center p-4 text-gray-500">Chưa có chi phí vận hành nào.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {showPopup && (
-          <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-40 backdrop-blur-sm z-50">
-            <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl relative">
-              {popupType === "delete" ? (
-                <>
-                  <h2 className="text-2xl font-bold mb-4 text-red-600">Xóa Khoản Chi?</h2>
-                  <p className="mb-4 text-gray-700">Bạn có chắc muốn xóa khoản: <strong>{selectedRecord.name}</strong>?</p>
-                  <div className="flex space-x-3">
-                    <button onClick={handleDelete} className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Xóa</button>
-                    <button onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-2xl font-bold mb-4 text-blue-600">{popupType === "create" ? "Thêm Mới" : "Cập Nhật"}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <input type="text" name="name" placeholder="Tên khoản chi (VD: Tiền điện T5)" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-                    
-                    <div className="flex gap-2">
-                        <select name="type" value={form.type} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            {categories.map((cat, index) => (
-                                <option key={index} value={cat}>{cat}</option>
-                            ))}
-                        </select>
-                        <input type="number" name="amount" placeholder="Số tiền" value={form.amount} onChange={handleChange} className="w-1/2 border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required min="0" />
-                    </div>
-
-                    <select name="relatedTankId" value={form.relatedTankId} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        <option value="">-- Chi phí chung (Toàn trại) --</option>
-                        {tanks.map(t => <option key={t._id} value={t._id}>Chi riêng cho: {t.name}</option>)}
-                    </select>
-
-                    <input type="text" name="payer" placeholder="Người chi tiền (Tùy chọn)" value={form.payer} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500">Ngày chi</label>
-                        <input type="date" name="date" value={form.date} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-                    </div>
-                    
-                    <textarea name="note" placeholder="Ghi chú..." rows="2" value={form.note} onChange={handleChange} className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
-
-                    <div className="flex space-x-3 pt-2">
-                      <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Lưu lại</button>
-                      <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
-                    </div>
-                  </form>
-                </>
-              )}
+        <div className="w-full bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold text-blue-600">Chi Phí Vận Hành</h1>
+            <button onClick={() => openPopup("create")} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                + Thêm Chi Phí
+            </button>
             </div>
-          </div>
-        )}
+
+            {loading ? <p className="text-center text-gray-600">Đang tải...</p> : (
+            <div className="overflow-x-auto">
+                <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
+                <thead className="bg-blue-500 text-white">
+                    <tr>
+                    <th className="py-3 px-4 text-center w-[5%]">STT</th>
+                    <th className="py-3 px-4 text-left w-[20%]">Khoản chi</th>
+                    <th className="py-3 px-4 text-center w-[15%]">Loại</th>
+                    <th className="py-3 px-4 text-right w-[15%]">Số tiền</th>
+                    <th className="py-3 px-4 text-center w-[15%]">Ngày chi</th>
+                    <th className="py-3 px-4 text-center w-[15%]">Gắn với Bể</th>
+                    <th className="py-3 px-4 text-center w-[15%]">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {expenses.map((item, index) => (
+                    <tr key={item._id} className="border-b hover:bg-gray-100">
+                        <td className="py-3 px-4 text-center">{index + 1}</td>
+                        <td className="py-3 px-4 font-medium">{item.name}</td>
+                        <td className="py-3 px-4 text-center text-sm">
+                            <span className={`px-2 py-1 rounded border ${
+                                item.type === 'Tiền điện' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                                item.type === 'Tiền nước' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                                'bg-gray-100 text-gray-700 border-gray-300'
+                            }`}>
+                                {item.type}
+                            </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td>
+                        <td className="py-3 px-4 text-center">{formatDate(item.date)}</td>
+                        <td className="py-3 px-4 text-center text-sm">{item.relatedTankId?.name || 'Chung'}</td>
+                        <td className="py-3 px-4 flex justify-center gap-2">
+                        <button onClick={() => openPopup("edit", item)} className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm">Sửa</button>
+                        <button onClick={() => openPopup("delete", item)} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Xóa</button>
+                        </td>
+                    </tr>
+                    ))}
+                    {expenses.length === 0 && <tr><td colSpan="7" className="text-center p-4 text-gray-500">Chưa có chi phí vận hành nào.</td></tr>}
+                </tbody>
+                </table>
+            </div>
+            )}
+
+            {showPopup && (
+            <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-40 backdrop-blur-sm z-50">
+                <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl relative">
+                {popupType === "delete" ? (
+                    <>
+                    <h2 className="text-2xl font-bold mb-4 text-red-600">Xóa Khoản Chi?</h2>
+                    <p className="mb-4 text-gray-700">Bạn có chắc muốn xóa khoản: <strong>{selectedRecord.name}</strong>?</p>
+                    <div className="flex space-x-3">
+                        <button onClick={handleDelete} className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Xóa</button>
+                        <button onClick={closePopup} className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 transition">Hủy</button>
+                    </div>
+                    </>
+                ) : (
+                    <>
+                    <h2 className="text-2xl font-bold mb-4 text-blue-600">{popupType === "create" ? "Thêm Mới" : "Cập Nhật"}</h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        
+                        {/* Tên khoản chi */}
+                        <div className="flex flex-col">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Tên khoản chi <span className="text-red-500">*</span></label>
+                            <input 
+                                type="text" 
+                                name="name" 
+                                placeholder="VD: Tiền điện T5, Sửa máy bơm..." 
+                                value={form.name} 
+                                onChange={handleChange} 
+                                className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                                required 
+                            />
+                        </div>
+                        
+                        <div className="flex gap-3">
+                            {/* Loại chi phí */}
+                            <div className="flex flex-col w-1/2">
+                                <label className="text-sm font-bold text-gray-700 mb-1">Loại chi phí</label>
+                                <select 
+                                    name="type" 
+                                    value={form.type} 
+                                    onChange={handleChange} 
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                >
+                                    {categories.map((cat, index) => (
+                                        <option key={index} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            {/* Số tiền */}
+                            <div className="flex flex-col w-1/2">
+                                <label className="text-sm font-bold text-gray-700 mb-1">Số tiền (VNĐ) <span className="text-red-500">*</span></label>
+                                <input 
+                                    type="number" 
+                                    name="amount" 
+                                    placeholder="0" 
+                                    value={form.amount} 
+                                    onChange={handleChange} 
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                                    required 
+                                    min="0" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Chọn Bể */}
+                        <div className="flex flex-col">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Chi cho (Bể nào?)</label>
+                            <select 
+                                name="relatedTankId" 
+                                value={form.relatedTankId} 
+                                onChange={handleChange} 
+                                className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            >
+                                <option value="">-- Chi phí chung (Toàn trại) --</option>
+                                {tanks.map(t => <option key={t._id} value={t._id}>Chi riêng cho: {t.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Người chi */}
+                        <div className="flex flex-col">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Người chi tiền</label>
+                            <input 
+                                type="text" 
+                                name="payer" 
+                                placeholder="Tên nhân viên..." 
+                                value={form.payer} 
+                                onChange={handleChange} 
+                                className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                            />
+                        </div>
+                        
+                        {/* Ngày chi */}
+                        <div className="flex flex-col">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Ngày chi</label>
+                            <input 
+                                type="date" 
+                                name="date" 
+                                value={form.date} 
+                                onChange={handleChange} 
+                                className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                                required 
+                            />
+                        </div>
+                        
+                        {/* Ghi chú */}
+                        <div className="flex flex-col">
+                            <label className="text-sm font-bold text-gray-700 mb-1">Ghi chú</label>
+                            <textarea 
+                                name="note" 
+                                placeholder="Chi tiết thêm..." 
+                                rows="2" 
+                                value={form.note} 
+                                onChange={handleChange} 
+                                className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                            />
+                        </div>
+
+                        {/* Nút bấm */}
+                        <div className="flex space-x-3 pt-4 border-t mt-2">
+                        <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                            {popupType === "create" ? "Lưu lại" : "Cập nhật"}
+                        </button>
+                        <button type="button" onClick={closePopup} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Hủy bỏ</button>
+                        </div>
+                    </form>
+                    </>
+                )}
+                </div>
+            </div>
+            )}
+        </div>
       </div>
     </Layout>
   );
