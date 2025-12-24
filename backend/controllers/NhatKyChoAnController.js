@@ -94,3 +94,63 @@ exports.deleteFeedingLog = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.updateFeedingLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tankId, foodId, quantity, feedingTime, notes } = req.body;
+
+    // 1. Tìm nhật ký cũ
+    const log = await FeedingLog.findById(id);
+    if (!log) {
+      return res.status(404).json({ message: "Không tìm thấy bản ghi nhật ký" });
+    }
+
+    // 2. Tìm loại thức ăn liên quan
+    // (Giả sử người dùng không đổi loại thức ăn, chỉ sửa số lượng/ngày giờ. 
+    // Nếu đổi loại thức ăn thì logic phức tạp hơn nhiều, ở đây ta tập trung vào đổi số lượng).
+    const foodItem = await Food.findById(log.foodId);
+    if (!foodItem) {
+      return res.status(404).json({ message: "Không tìm thấy thông tin thức ăn trong kho" });
+    }
+
+    // 3. Xử lý kho nếu số lượng thay đổi
+    const newQuantity = Number(quantity);
+    const oldQuantity = log.quantity;
+    
+    if (newQuantity !== oldQuantity) {
+      const difference = newQuantity - oldQuantity; // Dương là ăn thêm, Âm là giảm bớt
+
+      // Nếu ăn thêm (diff > 0), kiểm tra xem kho còn đủ để trừ thêm không
+      if (difference > 0 && foodItem.currentStock < difference) {
+        return res.status(400).json({ 
+           message: `Kho không đủ để cập nhật tăng! Cần thêm ${difference} ${foodItem.unit}, nhưng kho chỉ còn ${foodItem.currentStock}.` 
+        });
+      }
+
+      // Cập nhật tồn kho (Trừ đi phần chênh lệch)
+      // Nếu diff > 0 (tăng ăn) -> Stock giảm
+      // Nếu diff < 0 (giảm ăn) -> Stock tăng (hoàn lại)
+      foodItem.currentStock -= difference;
+      await foodItem.save();
+
+      // Cập nhật lại chi phí theo số lượng mới
+      log.estimatedCost = newQuantity * foodItem.pricePerUnit;
+    }
+
+    // 4. Cập nhật các thông tin khác
+    log.quantity = newQuantity;
+    if (tankId) log.tankId = tankId;
+    if (feedingTime) log.feedingTime = feedingTime;
+    if (notes) log.notes = notes;
+
+    await log.save();
+
+    res.status(200).json({ 
+      message: "Cập nhật thành công (Đã điều chỉnh tồn kho)", 
+      data: log 
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

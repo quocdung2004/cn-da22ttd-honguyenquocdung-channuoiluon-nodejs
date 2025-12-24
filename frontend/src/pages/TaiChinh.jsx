@@ -308,7 +308,7 @@ export default function FinanceManager() {
                     {/* B. HIỆU QUẢ TỪNG BỂ */}
                     <div>
                         <h3 className="text-xl font-bold text-gray-700 mb-4 border-b-2 border-blue-200 pb-2 inline-block">
-                            🐟 Hiệu quả từng Bể nuôi
+                           Hiệu quả từng Bể nuôi
                         </h3>
                         <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                             {Object.values(financeStats.reportByTank).map(tank => {

@@ -1,40 +1,40 @@
 import { Link, useLocation } from "react-router-dom";
 import { useContext, useState, createContext, useRef, useEffect } from "react";
-import axios from "axios"; 
-import { 
-  LayoutDashboard, 
-  Warehouse, 
-  Activity, 
-  Droplets, 
-  Utensils, 
-  Wallet, 
-  LogOut, 
-  Menu, 
+import axios from "axios";
+import {
+  LayoutDashboard,
+  Warehouse,
+  Activity,
+  Droplets,
+  Utensils,
+  Wallet,
+  LogOut,
+  Menu,
   X,
   Truck,
   DollarSign,
   Pill,
-  MessageSquare, 
-  Send, 
-  Bot, 
+  MessageSquare,
+  Send,
+  Bot,
   AlertTriangle
 } from "lucide-react";
 
-import { AuthContext } from "./trangThaiDangNhap"; 
+import { AuthContext } from "./trangThaiDangNhap";
 import AIConsultant from "./AIConsultant";
 
 // --- ICON GIỌT NƯỚC (Water Drop) ---
 const WaterDropIcon = ({ size = 24, className = "" }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={className}
   >
     {/* Hình giọt nước: nhọn ở trên, tròn to ở dưới */}
@@ -44,8 +44,8 @@ const WaterDropIcon = ({ size = 24, className = "" }) => (
 
 export default function Layout({ children }) {
   const { isLoggedIn, logout } = useContext(AuthContext);
-  const location = useLocation(); 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
+  const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleLogoutConfirmation = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?")) {
@@ -87,11 +87,10 @@ export default function Layout({ children }) {
     return (
       <Link
         to={to}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
-          isActive 
-            ? "bg-blue-600 text-white shadow-md" 
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${isActive
+            ? "bg-blue-600 text-white shadow-md"
             : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-        }`}
+          }`}
       >
         {icon}
         <span>{label}</span>
@@ -122,16 +121,15 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-      
+
       {/* 1. SIDEBAR */}
-      <aside 
-        className={`bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-all duration-300 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-64"
-        } fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0`}
+      <aside
+        className={`bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-all duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-64"
+          } fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0`}
       >
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
           <h1 className="text-xl font-bold text-blue-700 flex items-center gap-2">
-             <WaterDropIcon className="text-blue-500" /> AquaEel {/* Thay EelIcon bằng WaterDropIcon */}
+            <WaterDropIcon className="text-blue-500" /> AquaEel {/* Thay EelIcon bằng WaterDropIcon */}
           </h1>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden ml-auto text-gray-500">
             <X size={24} />
@@ -154,7 +152,7 @@ export default function Layout({ children }) {
         </nav>
 
         <div className="p-4 border-t border-gray-100 bg-gray-50">
-          <button 
+          <button
             onClick={handleLogoutConfirmation}
             className="flex items-center gap-3 w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
           >
@@ -166,33 +164,36 @@ export default function Layout({ children }) {
 
       {/* 2. MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
+
         <header className="bg-white border-b border-gray-200 h-16 flex items-center px-6 justify-between shadow-sm">
-           <div className="flex items-center gap-4">
-             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden text-gray-600">
-               <Menu size={24} />
-             </button>
-             <h2 className="text-lg font-semibold text-gray-800">
-                {menuGroups.flatMap(g => g.items).find(i => i.path === location.pathname)?.label || "Dashboard"}
-             </h2>
-           </div>
-           
-           <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-500 hidden sm:inline">Xin chào, Quản lý</span>
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                A
-              </div>
-           </div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden text-gray-600">
+              <Menu size={24} />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-800">
+              {menuGroups.flatMap(g => g.items).find(i => i.path === location.pathname)?.label || "Dashboard"}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500 hidden sm:inline">Xin chào, Quản lý</span>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+              A
+            </div>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 relative scrollbar-thin scrollbar-thumb-gray-300">
           <div className="max-w-7xl mx-auto pb-20">
-             {children}
+            {children}
           </div>
-          
+
           {/* AI Consultant luôn nổi ở góc */}
           <AIConsultant />
         </main>
+        <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500 mt-auto">
+          © {new Date().getFullYear()} AquaEel Manager — All rights reserved.
+        </footer>
       </div>
 
     </div>

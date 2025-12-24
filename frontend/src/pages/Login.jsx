@@ -2,11 +2,9 @@ import { useState, useContext, useEffect, createContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-// ⚠️ KHI CHẠY DỰ ÁN THẬT: Bỏ chú thích 2 dòng dưới và xóa các phần giả lập bên dưới
+
 import Layout from "../components/Layout.jsx";
 import { AuthContext } from "../components/trangThaiDangNhap.jsx"; 
-
-
 
 export default function Login() {
   const navigate = useNavigate();
@@ -65,25 +63,25 @@ export default function Login() {
 
   return (
     <Layout>
-      <div className="flex justify-center items-center py-20">
-        <div className="bg-white w-full max-w-md p-8 rounded-xl shadow-lg">
-          <h2 className="text-2xl font-bold text-center mb-6 text-blue-600">
+      <div className="flex justify-center items-center py-20 min-h-[80vh]"> {/* Tăng min-height để form căn giữa màn hình hơn */}
+        <div className="bg-white w-full max-w-lg p-10 rounded-2xl shadow-xl"> {/* Tăng max-width và padding */}
+          <h2 className="text-3xl font-bold text-center mb-8 text-blue-600"> {/* Tăng cỡ chữ tiêu đề và margin bottom */}
             Đăng nhập
           </h2>
 
           {msg && (
-            <p className="bg-red-100 text-red-600 p-2 rounded mb-4 text-center">
+            <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-6 text-center text-sm font-medium border border-red-200">
               {msg}
             </p>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-6"> {/* Tăng khoảng cách giữa các input */}
             <div>
-              <label className="block text-gray-600 mb-1">Email</label>
+              <label className="block text-gray-700 font-semibold mb-2">Email</label> {/* Làm đậm label */}
               <input
                 type="email"
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-400"
-                placeholder="Nhập email..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none" // Input to hơn, bo tròn hơn
+                placeholder="Nhập địa chỉ email của bạn"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -91,10 +89,10 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-gray-600 mb-1">Mật khẩu</label>
+              <label className="block text-gray-700 font-semibold mb-2">Mật khẩu</label>
               <input
                 type="password"
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                 placeholder="Nhập mật khẩu..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -104,15 +102,15 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md hover:shadow-lg mt-2" // Nút to hơn, có shadow
             >
-              Đăng nhập
+              Đăng nhập ngay
             </button>
           </form>
 
-          <p className="mt-4 text-center text-gray-700">
+          <p className="mt-8 text-center text-gray-600">
             Chưa có tài khoản?{" "}
-            <Link to="/register" className="text-blue-600 hover:underline">
+            <Link to="/register" className="text-blue-600 font-semibold hover:underline hover:text-blue-800 transition">
               Đăng ký ngay
             </Link>
           </p>

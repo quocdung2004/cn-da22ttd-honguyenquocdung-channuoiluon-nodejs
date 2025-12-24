@@ -4,6 +4,7 @@ const {
   createFeedingLog,
   getAllFeedingLogs,
   getFeedingLogsByTank,
+  updateFeedingLog,
   deleteFeedingLog
 } = require("../controllers/NhatKyChoAnController");
 
@@ -18,6 +19,7 @@ router.route("/")
 router.get("/tank/:tankId", getFeedingLogsByTank);
 
 router.route("/:id")
+  .put(updateFeedingLog)
   .delete(deleteFeedingLog);
 
 module.exports = router;
